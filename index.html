@@ -14,6 +14,7 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; }
 body { margin: 0; }
+/* Spiellogik: js/main.js (Module). Texte: js/texts.js. Zahlen: js/balance.js. */
 /* Layout: one screen, TV-style score bug on top, the whole hard court below seen from above: opponent's half on top, net across the middle, your half at the bottom. */
 :root {
   --surround: #2c6a52;   /* green run-off around the court */
@@ -68,9 +69,9 @@ button.chip { padding: 4px 10px; min-height: 32px; font-size: 13px; flex: none; 
 #stage { position: relative; flex: 1; min-height: 0; margin-top: 4px; overflow: hidden; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
 
-/* Super shot button, in your half within thumb reach */
+/* Super shot button: below your baseline in the green run-off, bottom right (class .lefty: bottom left) */
 .super {
-  position: absolute; right: 12px; top: 58%; width: 72px; height: 72px; min-height: 0; padding: 0; border-radius: 50%;
+  position: absolute; right: 12px; bottom: 10px; width: 66px; height: 66px; min-height: 0; padding: 0; border-radius: 50%;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   font-size: 13px; letter-spacing: .08em; color: var(--ink); background: rgba(15, 42, 34, .78);
   border: 2px solid var(--super); touch-action: none;
@@ -79,6 +80,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 .super.armed { background: var(--super); color: var(--board); box-shadow: 0 0 0 6px rgba(255, 138, 61, .3); }
 .super.armed b { color: var(--board); }
 .super:disabled { opacity: .35; }
+.super.lefty { right: auto; left: 12px; }
 
 /* Overlays */
 .sheet {
@@ -135,7 +137,7 @@ button:disabled { opacity: .45; cursor: default; }
 </style>
 </head>
 <body>
-<div id="turn"><div class="big">Handy hochkant halten</div><p class="small">Netzroller spielt man im Hochformat.</p></div>
+<div id="turn"><div class="big" data-t="turnPhone">Handy hochkant halten</div><p class="small" data-t="turnPhoneText">Netzroller spielt man im Hochformat.</p></div>
 <div id="app">
   <div id="board" aria-live="polite">
     <div class="row"><div class="who"><i class="srv" id="srvOp"></i><span id="nameOp">Gegner</span></div><div class="g" id="gOp">0</div><div class="p" id="pOp">0</div></div>
@@ -143,24 +145,24 @@ button:disabled { opacity: .45; cursor: default; }
   </div>
   <div id="topbar">
     <div id="status">Kurzsatz · wer zuerst 3 Spiele gewinnt</div>
-    <button class="ghost chip" id="fsBtn" hidden>Vollbild</button>
-    <button class="ghost chip" id="quit" hidden>Aufgeben</button>
+    <button class="ghost chip" id="fsBtn" hidden data-t="fullscreen">Vollbild</button>
+    <button class="ghost chip" id="quit" hidden data-t="giveUp">Aufgeben</button>
   </div>
   <div id="stage">
     <canvas id="cv"></canvas>
     <div id="banner"></div>
-    <button class="super" id="superBtn" hidden aria-pressed="false">Super<b id="superN">2</b></button>
+    <button class="super" id="superBtn" hidden aria-pressed="false"><span data-t="superBtn">Super</span><b id="superN">2</b></button>
 
     <div class="sheet" id="lobby">
       <div class="card">
         <div class="brand">Netz<em>roller</em></div>
-        <p class="lede">Tennis für zwei Handys. Beide sehen den ganzen Platz, jedes Handy steuert den eigenen Schläger.</p>
+        <p class="lede" data-t="lede">Tennis für zwei Handys.</p>
         <div class="field">
-          <label for="nameIn">Dein Name</label>
-          <input id="nameIn" maxlength="14" autocomplete="off" enterkeyhint="done" placeholder="z. B. Pascal">
+          <label for="nameIn" data-t="nameLabel">Dein Name</label>
+          <input id="nameIn" maxlength="14" autocomplete="off" enterkeyhint="done" placeholder="z. B. Pascal" data-tp="namePlaceholder">
         </div>
         <div class="field">
-          <span class="label" id="lvlLabel">Schwierigkeit</span>
+          <span class="label" id="lvlLabel" data-t="levelLabel">Schwierigkeit</span>
           <div class="seg" role="group" aria-labelledby="lvlLabel">
             <button type="button" data-level="0" aria-pressed="false">Leicht</button>
             <button type="button" data-level="1" aria-pressed="true">Mittel</button>
@@ -168,26 +170,27 @@ button:disabled { opacity: .45; cursor: default; }
           </div>
           <p class="small" id="lvlHint"></p>
         </div>
-        <button id="hostBtn" disabled>Spiel eröffnen</button>
-        <div class="or">oder beitreten</div>
+        <button id="hostBtn" disabled data-t="host">Spiel eröffnen</button>
+        <div class="or" data-t="orJoin">oder beitreten</div>
         <div class="joinrow">
-          <input id="codeIn" maxlength="4" autocomplete="off" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" placeholder="code" aria-label="Spielcode">
-          <button id="joinBtn" disabled>Los</button>
+          <input id="codeIn" maxlength="4" autocomplete="off" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" placeholder="code" data-tp="codePlaceholder" aria-label="Spielcode">
+          <button id="joinBtn" disabled data-t="join">Los</button>
         </div>
-        <p class="note" id="roomNote">Verbinde …</p>
-        <button class="ghost" id="soloBtn">Allein gegen den Computer</button>
-        <p class="small"><b>Super-Schlag:</b> zweimal pro Ballwechsel. Tippe auf «Super» oder wische schnell nach oben, dann fliegt dein nächster Schlag gut doppelt so schnell.</p>
-        <p class="small"><b>Am PC:</b> Maus oder Pfeiltasten bewegen den Schläger, Klick oder Leertaste schlägt auf, Pfeil nach oben oder S lädt den Super-Schlag.</p>
+        <p class="note" id="roomNote" data-t="connecting">Verbinde …</p>
+        <button class="ghost" id="soloBtn" data-t="solo">Allein gegen den Computer</button>
+        <p class="small"><b data-t="helpServeLabel">Aufschlag:</b> <span data-t="helpServe"></span></p>
+        <p class="small"><b data-t="helpSuperLabel">Super-Schlag:</b> <span data-t="helpSuper"></span></p>
+        <p class="small"><b data-t="helpPcLabel">Am PC:</b> <span data-t="helpPc"></span></p>
       </div>
     </div>
 
     <div class="sheet" id="waiting" hidden>
       <div class="card">
-        <label>Spielcode</label>
+        <label data-t="codeLabel">Spielcode</label>
         <div class="code" id="codeOut">----</div>
-        <p class="small">Öffne diese Seite auf dem zweiten Handy und gib dort den Code ein. Sobald beide drin sind, geht es los.</p>
-        <button id="shareBtn" hidden>Link teilen</button>
-        <button class="ghost" id="cancelBtn">Abbrechen</button>
+        <p class="small" data-t="waitingText">Öffne diese Seite auf dem zweiten Handy und gib dort den Code ein.</p>
+        <button id="shareBtn" hidden data-t="share">Link teilen</button>
+        <button class="ghost" id="cancelBtn" data-t="cancel">Abbrechen</button>
       </div>
     </div>
 
@@ -195,681 +198,13 @@ button:disabled { opacity: .45; cursor: default; }
       <div class="card">
         <div class="big" id="overTitle">Satz</div>
         <p class="small" id="overText" style="text-align:center"></p>
-        <button id="againBtn">Revanche</button>
-        <button class="ghost" id="leaveBtn">Zurück zum Start</button>
+        <button id="againBtn" data-t="again">Revanche</button>
+        <button class="ghost" id="leaveBtn" data-t="back">Zurück zum Start</button>
       </div>
     </div>
   </div>
 </div>
 
-<script>
-(() => {
-  // ---------- rules ----------
-  // Ball position: x in court widths (0..1), v along the court: -1 = opponent's racket, 0 = net, +1 = your racket.
-  // Speeds: vx in widths/s, vv in half-courts/s, so every screen shape plays at the same pace.
-  const LEVELS = [
-    { name: "Leicht", base: 0.85, max: 1.9, up: 1.035, hw: 0.17, ai: 0.9, aiErr: 0.55, aiSuper: 0 },
-    { name: "Mittel", base: 1.15, max: 2.5, up: 1.05,  hw: 0.15, ai: 1.35, aiErr: 0.4, aiSuper: 0.15 },
-    { name: "Schwer", base: 1.6,  max: 3.2, up: 1.065, hw: 0.13, ai: 2.0, aiErr: 0.28, aiSuper: 0.3 },
-  ];
-  const LEVEL_HINTS = [
-    "Langsamer Ball, breiter Schläger.",
-    "Normales Tempo.",
-    "Der Ball startet schon schnell und wird rasch schneller, der Schläger ist schmaler.",
-  ];
-  const R = 0.032, SUPER_MULT = 2.2, SUPERS = 2, GAMES_TO_WIN = 3, MAX_VX = 2.6, GRACE = 0.06;
-  const PTS = ["0", "15", "30", "40"];
-  const $ = id => document.getElementById(id);
-  const cv = $("cv"), ctx = cv.getContext("2d");
-
-  let level = 1, LV = LEVELS[1];
-  // screen geometry: s = px per court width, ox = left offset, D = net-to-racket distance in widths
-  let W = 1, H = 1, dpr = 1, s = 1, ox = 0, D = 0.8, rv = 0.04;
-
-  // ---------- state ----------
-  let mode = "idle";            // idle | waiting | play | solo
-  let room = null, game = null, unsub = [];
-  let myRole = "A", host = false, oppPeer = null, oppName = "Gegner", oppHere = false;
-  let myName = "";
-  let score = freshScore(0);
-  let ball = { phase: "serve", x: .5, v: .9, vx: 0, vv: 0, sup: false, ns: 0, hold: 0, held: false };
-  let shotN = 0, handled = new Set();
-  let px = 0.5, lastPx = 0.5, pVel = 0, sentPx = -1;
-  let oppX = 0.5, aiOffset = 0, aiServeT = 0;
-  let mySupers = SUPERS, aiSupers = SUPERS, armed = false;
-  let trail = [], flashes = [], resetTok = 0;
-
-  function freshScore(seq) { return { seq, p: { A: 0, B: 0 }, g: { A: 0, B: 0 }, win: null }; }
-  const other = r => r === "A" ? "B" : "A";
-  const server = () => ((score.g.A + score.g.B) % 2 === 0 ? "A" : "B");
-  const playing = () => mode === "play" || mode === "solo";
-
-  try { myName = localStorage.getItem("nr-name") || ""; } catch (e) {}
-  try { const l = parseInt(localStorage.getItem("nr-level"), 10); if (l >= 0 && l <= 2) level = l; } catch (e) {}
-  $("nameIn").value = myName;
-  const h = (location.hash || "").slice(1).toLowerCase();
-  if (/^[a-z0-9]{4}$/.test(h)) $("codeIn").value = h;
-
-  function setLevel(i, save) {
-    if (!(i >= 0 && i <= 2)) return;
-    level = i; LV = LEVELS[i];
-    document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.level === i)));
-    $("lvlHint").textContent = LEVEL_HINTS[i];
-    px = clamp(px, LV.hw, 1 - LV.hw);
-    if (save) { try { localStorage.setItem("nr-level", String(i)); } catch (e) {} }
-    renderBoard();
-  }
-  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => setLevel(+b.dataset.level, true)));
-
-  // ---------- canvas sizing ----------
-  function resize() {
-    const r = cv.getBoundingClientRect();
-    dpr = Math.min(window.devicePixelRatio || 1, 3);
-    W = r.width || 1; H = r.height || 1;
-    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    s = Math.min(W, H / 1.7);
-    ox = (W - s) / 2;
-    D = Math.max(0.45, (H / s) / 2 - 0.17);
-    rv = R / D;
-  }
-  new ResizeObserver(resize).observe($("stage"));
-
-  // ---------- input ----------
-  let down = null, keys = {};
-  function setPxFromEvent(e) {
-    const r = cv.getBoundingClientRect();
-    px = clamp((e.clientX - r.left - ox) / s, LV.hw, 1 - LV.hw);
-  }
-  cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); down = { x: e.clientX, y: e.clientY, t: performance.now(), swiped: false }; setPxFromEvent(e); audioInit(); });
-  cv.addEventListener("pointermove", e => {
-    if (down || e.pointerType === "mouse") setPxFromEvent(e);
-    // a quick flick upwards loads the super shot
-    if (down && !down.swiped && down.y - e.clientY > 60 && performance.now() - down.t < 400) { down.swiped = true; arm(true); }
-  });
-  cv.addEventListener("pointerup", e => {
-    if (down && !down.swiped && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 14 && performance.now() - down.t < 350) tryServe();
-    down = null;
-  });
-  cv.addEventListener("pointercancel", () => { down = null; });
-  ["touchstart", "touchmove"].forEach(t => cv.addEventListener(t, e => e.preventDefault(), { passive: false }));
-  cv.addEventListener("contextmenu", e => e.preventDefault());
-  addEventListener("keydown", e => {
-    keys[e.key] = true;
-    if (!playing() || e.target.tagName === "INPUT") return;
-    if (e.key === " ") { e.preventDefault(); tryServe(); }
-    if (e.key === "ArrowUp" || e.key === "s" || e.key === "S") { e.preventDefault(); arm(); }
-  });
-  addEventListener("keyup", e => { keys[e.key] = false; });
-
-  const superBtn = $("superBtn");
-  superBtn.addEventListener("pointerdown", e => e.stopPropagation());
-  superBtn.addEventListener("click", () => { audioInit(); arm(); });
-
-  function arm(only) {
-    if (!playing() || mySupers <= 0) return;
-    if (!["serve", "oppserve", "fly"].includes(ball.phase)) return;
-    armed = only ? true : !armed;
-    updateSuperBtn();
-    if (armed) { pock(980, .06, .15); buzz(10); }
-  }
-  function updateSuperBtn() {
-    superBtn.hidden = !playing();
-    $("superN").textContent = mySupers;
-    superBtn.disabled = mySupers <= 0;
-    superBtn.classList.toggle("armed", armed);
-    superBtn.setAttribute("aria-pressed", String(armed));
-  }
-
-  // ---------- sound ----------
-  let ac = null;
-  function audioInit() { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
-  function pock(freq = 520, dur = .07, vol = .25) {
-    if (!ac) return;
-    try {
-      const o = ac.createOscillator(), g = ac.createGain();
-      o.type = "triangle"; o.frequency.setValueAtTime(freq, ac.currentTime);
-      o.frequency.exponentialRampToValueAtTime(freq * .5, ac.currentTime + dur);
-      g.gain.setValueAtTime(vol, ac.currentTime); g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + dur);
-      o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime + dur);
-    } catch (e) {}
-  }
-  function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
-
-  // ---------- shots ----------
-  function tryServe() {
-    if (ball.phase !== "serve" || !playing()) return;
-    if (mode === "play" && !oppHere) return;
-    launchMine(LV.base, clamp(pVel * 0.2 + (Math.random() - .5) * 0.4, -0.6, 0.6));
-  }
-
-  function myHit() {
-    const off = clamp((ball.x - px) / LV.hw, -1, 1);
-    const prev = ball.sup ? ball.ns : Math.abs(ball.vv);
-    const ang = clamp(off * 0.9 + clamp(pVel * 0.1, -0.3, 0.3), -0.95, 0.95);
-    launchMine(Math.min(prev * LV.up, LV.max), ang);
-  }
-
-  // normal = the rally's regular pace; a super shot multiplies it once, the return goes back to normal
-  function launchMine(normal, ang) {
-    let speed = normal, sup = false;
-    if (armed && mySupers > 0) { sup = true; mySupers--; speed = normal * SUPER_MULT; banner("Super-Schlag", true); }
-    armed = false; updateSuperBtn();
-    ball.vv = -speed; ball.vx = clamp(speed * 0.9 * Math.tan(ang), -MAX_VX, MAX_VX);
-    ball.v = 1 - rv; ball.sup = sup; ball.ns = normal; ball.phase = "fly"; ball.hold = 0; ball.held = false;
-    flashes.push({ x: ball.x, y: ball.v * D, t: 0, sup });
-    pock(sup ? 760 : 480 + normal * 90); buzz(sup ? 35 : 18);
-    if (mode === "solo") aiOffset = (Math.random() * 2 - 1) * LV.hw * (0.6 + LV.aiErr * 1.5);
-    else {
-      shotN++;
-      publish({ shot: { seq: score.seq, n: shotN, x: r3(ball.x), v: r3(ball.v), vx: r3(ball.vx), vv: r3(ball.vv), sup, ns: r3(normal) } });
-    }
-  }
-
-  function aiLaunch(normal) {
-    const ang = (Math.random() - .5) * 1.3;
-    let speed = normal, sup = false;
-    if (aiSupers > 0 && Math.random() < LV.aiSuper) { sup = true; aiSupers--; speed = normal * SUPER_MULT; banner("Super-Schlag", true); }
-    ball.vv = speed; ball.vx = clamp(speed * 0.9 * Math.tan(ang), -MAX_VX, MAX_VX);
-    ball.v = -1 + rv; ball.sup = sup; ball.ns = normal; ball.phase = "fly";
-    flashes.push({ x: ball.x, y: ball.v * D, t: 0, sup });
-    pock(sup ? 700 : 420, .06, .18);
-  }
-
-  // the opponent's shot, sent from their side: mirror it onto this court
-  function incoming(sh) {
-    ball.x = clamp(1 - num(sh.x, .5), R, 1 - R);
-    ball.v = -clamp(num(sh.v, 1), -1.2, 1.2);
-    ball.vx = -num(sh.vx, 0);
-    ball.vv = Math.max(Math.abs(num(sh.vv, LV.base)), 0.4);
-    ball.sup = !!sh.sup; ball.ns = clamp(num(sh.ns, LV.base), 0.3, 4);
-    ball.phase = "fly"; ball.hold = 0; ball.held = false; trail = [];
-    flashes.push({ x: ball.x, y: ball.v * D, t: 0, sup: ball.sup });
-    pock(ball.sup ? 700 : 420, .06, .15);
-    if (ball.sup) banner("Super-Schlag", true);
-  }
-
-  // ---------- points ----------
-  function scorePoint(w) {
-    trail = [];
-    if (w !== myRole) { buzz([40, 40, 40]); pock(180, .18, .3); } else pock(880, .12, .2);
-    const s2 = JSON.parse(JSON.stringify(score));
-    s2.seq++; s2.p[w]++;
-    const l = other(w);
-    if (s2.p[w] >= 4 && s2.p[w] - s2.p[l] >= 2) {
-      s2.g[w]++; s2.p = { A: 0, B: 0 };
-      if (s2.g[w] >= GAMES_TO_WIN) s2.win = w;
-    }
-    applyScore(s2, true);
-  }
-
-  function applyScore(s2, mine) {
-    const prev = score;
-    score = s2;
-    if (mine) publish({ score: s2 });
-    ball.phase = "none"; armed = false;
-    renderBoard();
-    if (s2.win) banner(s2.win === myRole ? "Satz für dich" : "Satz " + oppName);
-    else if (s2.g.A + s2.g.B > prev.g.A + prev.g.B) {
-      const w = s2.g.A > prev.g.A ? "A" : "B";
-      banner(w === myRole ? "Spiel für dich" : "Spiel " + oppName);
-    } else if (s2.p.A || s2.p.B) banner(pointCall(s2));
-    const tok = ++resetTok;
-    setTimeout(() => { if (tok === resetTok) resetForPoint(); }, s2.seq === 0 || (!s2.p.A && !s2.p.B && !s2.g.A && !s2.g.B) ? 0 : 800);
-  }
-
-  function resetForPoint() {
-    trail = [];
-    mySupers = SUPERS; aiSupers = SUPERS; armed = false; updateSuperBtn();
-    if (!playing()) return;
-    if (score.win) { ball.phase = "none"; showOver(); return; }
-    $("over").hidden = true;
-    if (server() === myRole) { ball.phase = "serve"; ball.x = px; ball.v = 1 - rv - 0.05; }
-    else { ball.phase = "oppserve"; aiServeT = 1.0; }
-  }
-
-  function pointCall(s2) {
-    const me = s2.p[myRole], op = s2.p[other(myRole)];
-    if (me >= 3 && op >= 3) return me === op ? "Einstand" : (me > op ? "Vorteil du" : "Vorteil " + oppName);
-    const sv = server(), a = s2.p[sv], b = s2.p[other(sv)];
-    return (PTS[a] || "40") + " : " + (PTS[b] || "40");   // server's score called first, as an umpire would
-  }
-
-  // ---------- board ----------
-  function renderBoard() {
-    const me = myRole, op = other(myRole);
-    $("nameMe").textContent = myName || "Du"; $("nameOp").textContent = oppName;
-    $("gMe").textContent = score.g[me]; $("gOp").textContent = score.g[op];
-    const a = score.p[me], b = score.p[op];
-    let ta, tb;
-    if (a >= 3 && b >= 3) { ta = a > b ? "AD" : "40"; tb = b > a ? "AD" : "40"; }
-    else { ta = PTS[a]; tb = PTS[b]; }
-    $("pMe").textContent = ta; $("pOp").textContent = tb;
-    $("srvMe").classList.toggle("on", server() === me);
-    $("srvOp").classList.toggle("on", server() === op);
-    let st = LV.name + " · Kurzsatz bis " + GAMES_TO_WIN + " Spiele";
-    if (a >= 3 && b >= 3) st = LV.name + " · " + (a === b ? "Einstand" : "Vorteil " + (a > b ? "du" : oppName));
-    if (mode === "play" && !oppHere) st = "Gegner ist weg · warte auf Rückkehr";
-    $("status").textContent = st;
-  }
-
-  let bannerT = 0;
-  function banner(t, hot) {
-    const b = $("banner"); b.textContent = t; b.classList.add("show"); b.classList.toggle("hot", !!hot);
-    clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove("show"), 1000);
-  }
-
-  function showOver() {
-    const won = score.win === myRole;
-    $("overTitle").textContent = won ? "Gewonnen" : "Verloren";
-    $("overText").textContent = "Satz " + score.g[myRole] + " : " + score.g[other(myRole)] + " gegen " + oppName + " · " + LV.name;
-    $("over").hidden = false;
-  }
-
-  // ---------- direct connection (outside claude.ai, e.g. GitHub Pages) ----------
-  // Same calls as a claude.ai room (presence / onPeers / leave), carried over a WebRTC data channel via PeerJS.
-  let p2pMode = false;
-  function loadPeerJs() {
-    return new Promise((res, rej) => {
-      if (window.Peer) return res();
-      const sc = document.createElement("script");
-      sc.src = "https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js";
-      sc.onload = () => res(); sc.onerror = () => rej(new Error("PeerJS konnte nicht geladen werden. Bist du online?"));
-      document.head.appendChild(sc);
-    });
-  }
-  function makeP2P() {
-    return {
-      async join(name, asHost) {
-        await loadPeerJs();
-        const hostId = "netzroller-v1-" + name;
-        let mine = {}, theirs = null, theirId = null, conn = null, closed = false, sendT = 0, retryT = 0;
-        const listeners = new Set();
-        let myId = "", failJoin = null;
-        const snapshot = () => {
-          const list = [{ peer: myId, sameTab: true, isMe: true, presence: mine }];
-          if (theirs && conn && conn.open) list.push({ peer: theirId, sameTab: false, isMe: false, presence: theirs });
-          return list;
-        };
-        const emitPeers = () => { const peers = snapshot(); listeners.forEach(fn => { try { fn({ peers }); } catch (e) {} }); };
-        const flush = () => { sendT = 0; if (conn && conn.open) { try { conn.send(mine); } catch (e) {} } };
-        const attach = c => {
-          conn = c;
-          c.on("open", () => { theirId = c.peer; flush(); });
-          c.on("data", d => { if (d && typeof d === "object" && !Array.isArray(d)) { theirs = Object.freeze({ ...d }); emitPeers(); } });
-          c.on("close", () => { if (conn === c) { conn = null; theirs = null; emitPeers(); if (!asHost && !closed) retry(); } });
-          c.on("error", () => {});
-        };
-        const peer = await new Promise((res, rej) => {
-          const pr = asHost ? new Peer(hostId, { debug: 0 }) : new Peer({ debug: 0 });
-          const t = setTimeout(() => { pr.destroy(); rej(new Error("Keine Verbindung zum Vermittlungsserver.")); }, 12000);
-          pr.on("open", id => { clearTimeout(t); myId = id; res(pr); });
-          pr.on("error", e => {
-            clearTimeout(t);
-            if (e.type === "unavailable-id") rej(new Error("Diesen Code gibt es schon. Eröffne nochmals ein Spiel."));
-            else if (e.type === "peer-unavailable") { if (!asHost && !theirs) failJoin && failJoin(new Error("Kein offenes Spiel mit diesem Code gefunden.")); }
-            else rej(new Error("Verbindung fehlgeschlagen (" + (e.type || "unbekannt") + ")."));
-          });
-        });
-        const retry = () => { clearTimeout(retryT); retryT = setTimeout(() => { if (!closed && !conn) attach(peer.connect(hostId, { reliable: true })); }, 2000); };
-        if (asHost) {
-          peer.on("connection", c => {
-            if (conn && conn.open) { c.on("open", () => c.close()); return; }   // one opponent per game
-            attach(c);
-          });
-        } else {
-          await new Promise((res, rej) => {
-            failJoin = e => { peer.destroy(); rej(e); };
-            const c = peer.connect(hostId, { reliable: true });
-            const t = setTimeout(() => failJoin(new Error("Das andere Handy antwortet nicht.")), 12000);
-            c.on("open", () => { clearTimeout(t); failJoin = null; res(); });
-            attach(c);
-          });
-        }
-        peer.on("disconnected", () => { if (!closed) { try { peer.reconnect(); } catch (e) {} } });
-        return {
-          presence(patch) {
-            mine = { ...mine };
-            for (const k in patch) { if (patch[k] === null) delete mine[k]; else mine[k] = patch[k]; }
-            if (!sendT) sendT = setTimeout(flush, 30);
-            emitPeers();
-            return Promise.resolve();
-          },
-          onPeers(fn) { listeners.add(fn); setTimeout(() => fn({ peers: snapshot() }), 0); return () => listeners.delete(fn); },
-          async leave() { closed = true; clearTimeout(retryT); listeners.clear(); try { conn && conn.close(); } catch (e) {} try { peer.destroy(); } catch (e) {} },
-        };
-      },
-    };
-  }
-
-  // ---------- room / multiplayer ----------
-  function publish(patch) { if (game) game.presence(patch).catch(() => {}); }
-
-  function onPeers({ peers }) {
-    const players = peers.filter(p => p.presence && p.presence.app === "nr");
-    const me = players.find(p => p.sameTab);
-    if (!me) return;
-    const others = players.filter(p => !p.sameTab);
-    const opp = others.find(p => p.peer === oppPeer) || others.sort((a, b) => a.peer < b.peer ? -1 : 1)[0];
-    const wasHere = oppHere;
-    oppHere = !!opp;
-    if (!opp) { if (mode === "play" && wasHere) { resetForPoint(); } renderBoard(); return; }
-
-    if (opp.peer !== oppPeer) {
-      oppPeer = opp.peer;
-      const theyHost = !!opp.presence.host;
-      myRole = host && !theyHost ? "A" : (!host && theyHost ? "B" : (me.peer < opp.peer ? "A" : "B"));
-    }
-    oppName = cleanName(opp.presence.name) || "Gegner";
-    if (typeof opp.presence.px === "number") oppX = clamp(1 - opp.presence.px, 0, 1);
-    // the player who opened the game (A) sets the difficulty
-    if (myRole === "B" && Number.isInteger(opp.presence.level) && opp.presence.level !== level) setLevel(opp.presence.level, false);
-
-    if (mode === "waiting") startMatch();
-    else if (!wasHere && mode === "play") resetForPoint();
-
-    const sc = opp.presence.score;
-    if (validScore(sc) && sc.seq > score.seq) { publish({ score: sc }); applyScore(sc, false); }
-
-    const sh = opp.presence.shot;
-    if (sh && sh.seq === score.seq && typeof sh.n === "number") {
-      const key = sh.seq + ":" + sh.n;
-      if (!handled.has(key)) { handled.add(key); incoming(sh); }
-    }
-    renderBoard();
-  }
-
-  function validScore(x) {
-    return x && typeof x.seq === "number" && x.p && x.g &&
-      ["A", "B"].every(k => Number.isInteger(x.p[k]) && Number.isInteger(x.g[k]) && x.p[k] >= 0 && x.g[k] >= 0 && x.p[k] < 50 && x.g[k] <= GAMES_TO_WIN) &&
-      (x.win === null || x.win === "A" || x.win === "B");
-  }
-
-  async function enterRoom(code, asHost) {
-    if (!room) return;
-    saveName();
-    host = asHost; oppPeer = null; oppHere = false; handled = new Set(); shotN = 0;
-    score = freshScore(0);
-    try {
-      $("roomNote").hidden = false; $("roomNote").textContent = "Verbinde …";
-      game = await room.join("nr-" + code, asHost);
-      $("roomNote").hidden = true;
-    } catch (e) {
-      $("roomNote").hidden = false;
-      $("roomNote").textContent = (p2pMode && e && e.message) || "Beitreten hat nicht geklappt. Versuch es nochmals.";
-      return;
-    }
-    mode = "waiting"; inGame(true);
-    $("lobby").hidden = true;
-    $("codeOut").textContent = code;
-    $("shareBtn").hidden = !p2pMode;
-    shareLink = location.origin + location.pathname + "#" + code;
-    $("waiting").hidden = false;
-    unsub.push(game.onPeers(onPeers, () => {}));
-    publish({ app: "nr", name: myName, host: asHost, level, px: .5, score, shot: null });
-  }
-
-  function startMatch() {
-    mode = "play";
-    $("waiting").hidden = true; $("over").hidden = true; $("quit").hidden = false;
-    renderBoard();
-    banner("Spiel beginnt");
-    resetForPoint();
-  }
-
-  async function leave() {
-    unsub.forEach(u => { try { u(); } catch (e) {} }); unsub = [];
-    if (game) { try { await game.leave(); } catch (e) {} game = null; }
-    mode = "idle"; oppPeer = null; oppHere = false; oppName = "Gegner"; myRole = "A";
-    ["waiting", "over"].forEach(id => $(id).hidden = true);
-    $("quit").hidden = true; $("lobby").hidden = false; inGame(false);
-    score = freshScore(0); ++resetTok; armed = false; updateSuperBtn();
-    ball.phase = "serve"; renderBoard();
-  }
-
-  // ---------- lobby wiring ----------
-  function saveName() {
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-    myName = cleanName($("nameIn").value);
-    try { localStorage.setItem("nr-name", myName); } catch (e) {}
-  }
-  function makeCode() {
-    const al = "abcdefghjkmnpqrstuvwxyz23456789"; let c = "";
-    for (let i = 0; i < 4; i++) c += al[Math.floor(Math.random() * al.length)];
-    return c;
-  }
-  $("hostBtn").onclick = () => { audioInit(); goFullscreen(); enterRoom(makeCode(), true); };
-  $("joinBtn").onclick = () => {
-    audioInit();
-    const c = $("codeIn").value.trim().toLowerCase();
-    if (!/^[a-z0-9]{4}$/.test(c)) { $("roomNote").hidden = false; $("roomNote").textContent = "Der Code hat 4 Zeichen."; return; }
-    goFullscreen(); enterRoom(c, false);
-  };
-  $("codeIn").addEventListener("keydown", e => { if (e.key === "Enter") $("joinBtn").click(); });
-  $("cancelBtn").onclick = leave;
-  $("leaveBtn").onclick = leave;
-  $("quit").onclick = () => {
-    if (mode === "solo" && (score.win || (!score.seq))) { leave(); return; }
-    if (playing() && !score.win) {
-      const s2 = JSON.parse(JSON.stringify(score)); s2.seq++; s2.win = other(myRole);
-      applyScore(s2, true);
-    }
-  };
-  $("againBtn").onclick = () => applyScore(freshScore(score.seq + 1), true);
-  $("soloBtn").onclick = () => {
-    audioInit(); saveName(); goFullscreen();
-    mode = "solo"; myRole = "A"; oppName = "Computer"; oppHere = true; oppX = .5;
-    score = freshScore(0);
-    $("lobby").hidden = true; $("quit").hidden = false; inGame(true);
-    renderBoard(); banner("Spiel beginnt"); resetForPoint();
-  };
-
-  let shareLink = "";
-  $("shareBtn").onclick = async () => {
-    const text = "Spiel Netzroller mit mir: " + shareLink;
-    try { if (navigator.share) { await navigator.share({ title: "Netzroller", text: "Spiel Netzroller mit mir", url: shareLink }); return; } } catch (e) { return; }
-    try { await navigator.clipboard.writeText(shareLink); $("shareBtn").textContent = "Link kopiert"; }
-    catch (e) { $("shareBtn").textContent = shareLink; }
-    setTimeout(() => { $("shareBtn").textContent = "Link teilen"; }, 2500);
-  };
-
-  (async () => {
-    // inside claude.ai the page uses the platform's room; anywhere else it connects the phones directly
-    const inClaude = !!(window.claude && window.claude.use);
-    try { room = inClaude ? await window.claude.use("room") : null; } catch (e) { room = null; }
-    if (!room && !inClaude) { room = makeP2P(); p2pMode = true; }
-    if (room) {
-      $("hostBtn").disabled = false; $("joinBtn").disabled = false;
-      $("roomNote").hidden = true;
-    } else {
-      $("roomNote").textContent = "Zu zweit spielen klappt nur, wenn du die Seite angemeldet auf claude.ai öffnest. Gegen den Computer geht es immer.";
-    }
-  })();
-
-  function keepAwake() { try { navigator.wakeLock && navigator.wakeLock.request("screen").catch(() => {}); } catch (e) {} }
-  keepAwake();
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) keepAwake(); });
-
-  const fsOk = !!(document.documentElement.requestFullscreen && document.fullscreenEnabled);
-  async function goFullscreen() {
-    if (!fsOk || document.fullscreenElement || !matchMedia("(pointer: coarse)").matches) return;
-    try { await document.documentElement.requestFullscreen({ navigationUI: "hide" }); } catch (e) { return; }
-    try { await screen.orientation.lock("portrait"); } catch (e) {}
-  }
-  $("fsBtn").onclick = () => document.fullscreenElement ? document.exitFullscreen().catch(() => {}) : document.documentElement.requestFullscreen().catch(() => {});
-  document.addEventListener("fullscreenchange", () => { $("fsBtn").textContent = document.fullscreenElement ? "Fenster" : "Vollbild"; });
-  function inGame(on) { $("turn").classList.toggle("active", on); $("fsBtn").hidden = !on || !fsOk; keepAwake(); }
-
-  // ---------- loop ----------
-  let last = performance.now();
-  function frame(now) {
-    const dt = Math.min((now - last) / 1000, 0.033); last = now;
-    step(dt); draw();
-    requestAnimationFrame(frame);
-  }
-
-  function reflectX(x) {
-    const lo = R, w = 1 - 2 * R;
-    const u = (((x - lo) % (2 * w)) + 2 * w) % (2 * w);
-    return lo + (u > w ? 2 * w - u : u);
-  }
-
-  function stepAI(dt) {
-    let target = 0.5;
-    if (ball.phase === "fly" && ball.vv < 0) {
-      const t = (ball.v + 1) / -ball.vv;
-      target = reflectX(ball.x + ball.vx * t) + aiOffset;
-    }
-    const m = LV.ai * dt;
-    oppX = clamp(oppX + clamp(target - oppX, -m, m), LV.hw, 1 - LV.hw);
-  }
-
-  function step(dt) {
-    if (keys.ArrowLeft) px = clamp(px - dt * 1.4, LV.hw, 1 - LV.hw);
-    if (keys.ArrowRight) px = clamp(px + dt * 1.4, LV.hw, 1 - LV.hw);
-    const v = (px - lastPx) / Math.max(dt, 1e-3); lastPx = px;
-    pVel = pVel * 0.7 + v * 0.3;
-    if (mode === "play" && Math.abs(px - sentPx) > 0.004) { sentPx = px; publish({ px: r3(px) }); }
-    if (mode === "solo") stepAI(dt);
-
-    flashes.forEach(f => f.t += dt); flashes = flashes.filter(f => f.t < .35);
-
-    if (ball.phase === "serve") { ball.x = px; ball.v = 1 - rv - 0.05; return; }
-    if (ball.phase === "oppserve") {
-      ball.x = oppX; ball.v = -1 + rv + 0.05;
-      if (mode === "solo" && (aiServeT -= dt) <= 0) aiLaunch(LV.base);
-      return;
-    }
-    if (ball.phase !== "fly") return;
-
-    // held at the opponent's racket while their return travels over the network
-    if (ball.hold > 0) { ball.hold -= dt; return; }
-
-    const prevV = ball.v;
-    ball.x += ball.vx * dt; ball.v += ball.vv * dt;
-    if (ball.x < R) { ball.x = R; ball.vx = Math.abs(ball.vx); }
-    if (ball.x > 1 - R) { ball.x = 1 - R; ball.vx = -Math.abs(ball.vx); }
-    trail.push({ x: ball.x, y: ball.v * D }); if (trail.length > (ball.sup ? 16 : 10)) trail.shift();
-
-    if (ball.vv > 0) {
-      if (ball.v >= 1 - rv && prevV <= 1 + GRACE && Math.abs(ball.x - px) <= LV.hw + R) { myHit(); return; }
-      if (ball.v > 1.18) { ball.phase = "none"; scorePoint(other(myRole)); }
-    } else if (mode === "solo") {
-      if (ball.v <= -1 + rv && prevV >= -1 - GRACE && Math.abs(ball.x - oppX) <= LV.hw + R) { aiHit(); return; }
-      if (ball.v < -1.18) { ball.phase = "none"; scorePoint(myRole); }
-    } else {
-      if (!ball.held && ball.v <= -1 + rv && ball.v >= -1 - GRACE && Math.abs(ball.x - oppX) <= LV.hw + R) {
-        ball.held = true; ball.hold = 1.2; ball.v = -1 + rv;
-      } else if (ball.v < -1.18) ball.phase = "gone";
-    }
-  }
-
-  function aiHit() {
-    const prev = ball.sup ? ball.ns : Math.abs(ball.vv);
-    aiLaunch(Math.min(prev * LV.up, LV.max));
-  }
-
-  // ---------- drawing (court-width units, origin on the net at the left edge) ----------
-  function draw() {
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = css("--surround"); ctx.fillRect(0, 0, W, H);
-    ctx.setTransform(s * dpr, 0, 0, s * dpr, ox * dpr, (H / 2) * dpr);
-
-    const cx0 = 0.06, cx1 = 0.94, base = D - 0.08, white = css("--line"), lw = 0.008;
-    ctx.fillStyle = css("--court"); ctx.fillRect(cx0, -base, cx1 - cx0, base * 2);
-
-    // lines: doubles + singles sidelines, baselines, service lines, centre service line, centre marks
-    ctx.strokeStyle = white; ctx.lineWidth = lw;
-    const singles = 0.135 * (cx1 - cx0), svc = base * 0.54;
-    line(cx0 + lw / 2, -base, cx0 + lw / 2, base);
-    line(cx1 - lw / 2, -base, cx1 - lw / 2, base);
-    line(cx0 + singles, -base, cx0 + singles, base);
-    line(cx1 - singles, -base, cx1 - singles, base);
-    line(cx0 + singles, svc, cx1 - singles, svc);
-    line(cx0 + singles, -svc, cx1 - singles, -svc);
-    line(0.5, -svc, 0.5, svc);
-    ctx.lineWidth = lw * 1.6; line(cx0, base, cx1, base); line(cx0, -base, cx1, -base);
-    ctx.lineWidth = lw; line(0.5, base, 0.5, base - 0.03); line(0.5, -base, 0.5, -base + 0.03);
-
-    // net across the middle, posts just outside the doubles lines
-    ctx.fillStyle = "rgba(10,20,18,.5)"; ctx.fillRect(0.02, -0.016, 0.96, 0.032);
-    ctx.strokeStyle = "rgba(255,255,255,.2)"; ctx.lineWidth = 0.002;
-    for (let x = 0.02; x <= 0.98; x += 0.016) line(x, -0.016, x, 0.016);
-    ctx.fillStyle = white; ctx.fillRect(0.02, -0.004, 0.96, 0.008);
-    circle(0.02, 0, 0.012, "#1a1a1a"); circle(0.98, 0, 0.012, "#1a1a1a");
-
-    // rackets: opponent's at the top (handle up), yours at the bottom
-    const showOpp = mode === "solo" || (mode === "play" && oppHere);
-    if (showOpp) drawRacket(oppX, -D, -1, false);
-    drawRacket(px, D, 1, armed);
-
-    // ball
-    const vis = ball.phase === "serve" || ball.phase === "fly" || (ball.phase === "oppserve" && showOpp);
-    if (vis) {
-      const trailCol = ball.sup ? css("--super") : css("--ball");
-      for (let i = 0; i < trail.length; i++) {
-        const t = trail[i]; ctx.globalAlpha = (i / trail.length) * (ball.sup ? .55 : .25);
-        circle(t.x, t.y, R * (0.5 + i / trail.length * .5), trailCol);
-      }
-      ctx.globalAlpha = 1;
-      const by = ball.v * D;
-      circle(ball.x + 0.012, by + 0.02, R * .95, "rgba(0,0,0,.25)");
-      if (ball.sup && ball.phase === "fly") { ctx.globalAlpha = .35; circle(ball.x, by, R * 1.8, css("--super")); ctx.globalAlpha = 1; }
-      circle(ball.x, by, R, css("--ball"));
-      ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 0.004;
-      ctx.beginPath(); ctx.arc(ball.x - R * 1.15, by, R * .9, -0.9, 0.9); ctx.stroke();
-      ctx.beginPath(); ctx.arc(ball.x + R * 1.15, by, R * .9, Math.PI - 0.9, Math.PI + 0.9); ctx.stroke();
-    }
-    flashes.forEach(f => {
-      ctx.globalAlpha = 1 - f.t / .35; ctx.strokeStyle = f.sup ? css("--super") : css("--line"); ctx.lineWidth = f.sup ? 0.008 : 0.005;
-      ctx.beginPath(); ctx.arc(f.x, f.y, R + f.t * (f.sup ? 0.45 : 0.25), 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
-    });
-
-    // hints in your half
-    let hint = "";
-    if (playing()) {
-      if (ball.phase === "serve") hint = mode === "play" && !oppHere ? "Warte auf Gegner" : "Tippen zum Aufschlagen";
-      else if (ball.phase === "oppserve") hint = oppName + " schlägt auf";
-    }
-    if (hint) {
-      ctx.fillStyle = "rgba(244,247,242,.9)"; ctx.textAlign = "center";
-      ctx.font = "600 0.045px Barlow, system-ui, sans-serif";
-      ctx.fillText(hint, 0.5, D * 0.42);
-    }
-  }
-
-  // dir: +1 = your racket (handle down), -1 = opponent's (handle up); y is the hitting edge
-  function drawRacket(x, y, dir, glow) {
-    const hw = LV.hw, hh = 0.05, cy = y + dir * hh * .6;
-    ctx.fillStyle = "#1a1a1a";
-    if (dir > 0) roundRect(x - 0.016, cy + hh * .85, 0.032, 0.085, 0.01); else roundRect(x - 0.016, cy - hh * .85 - 0.085, 0.032, 0.085, 0.01);
-    ctx.fill();
-    ctx.save();
-    ctx.beginPath(); ctx.ellipse(x, cy, hw, hh, 0, 0, Math.PI * 2);
-    ctx.fillStyle = glow ? "rgba(255,138,61,.35)" : "rgba(255,255,255,.12)"; ctx.fill();
-    ctx.clip();
-    ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = 0.0025;
-    for (let i = -hw; i <= hw; i += 0.02) line(x + i, cy - hh, x + i, cy + hh);
-    for (let j = -hh; j <= hh; j += 0.016) line(x - hw, cy + j, x + hw, cy + j);
-    ctx.restore();
-    ctx.beginPath(); ctx.ellipse(x, cy, hw, hh, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = "#111"; ctx.lineWidth = 0.014; ctx.stroke();
-    ctx.strokeStyle = glow ? css("--super") : (dir > 0 ? css("--ball") : css("--line")); ctx.lineWidth = glow ? 0.009 : 0.005; ctx.stroke();
-  }
-
-  // ---------- helpers ----------
-  const cssCache = {};
-  function css(n) { return cssCache[n] || (cssCache[n] = getComputedStyle(document.documentElement).getPropertyValue(n).trim()); }
-  function line(a, b, c, d) { ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke(); }
-  function circle(x, y, r, c) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = c; ctx.fill(); }
-  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-  function r3(v) { return Math.round(v * 1000) / 1000; }
-  function num(v, d) { return typeof v === "number" && isFinite(v) ? clamp(v, -8, 8) : d; }
-  function cleanName(x) { return String(x || "").replace(/[^\p{L}\p{N} ._-]/gu, "").trim().slice(0, 14); }
-
-  resize(); setLevel(level, false); renderBoard();
-  requestAnimationFrame(frame);
-})();
-</script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>

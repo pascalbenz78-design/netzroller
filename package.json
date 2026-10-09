@@ -1,0 +1,10 @@
+{
+  "name": "netzroller",
+  "private": true,
+  "description": "Tennis für zwei Handys. Kein Build-Schritt: index.html direkt ausliefern. Diese Datei dient nur den Werkzeugen.",
+  "type": "module",
+  "scripts": {
+    "simulate": "node tools/simulate.mjs 500",
+    "serve": "node tools/serve.mjs"
+  }
+}
