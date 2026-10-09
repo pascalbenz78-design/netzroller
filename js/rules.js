@@ -29,7 +29,8 @@ export function depthIn(bv, limit) { return bv <= limit + C.ballRV; }
 export function lineGap(sh) {
   const bv = sh.bd - 1;
   const lim = sh.serve ? C.serviceLine : C.baseline;
-  const side = Math.min(Math.abs(sh.bx - C.singlesL), Math.abs(sh.bx - C.singlesR));
+  let side = Math.min(Math.abs(sh.bx - C.singlesL), Math.abs(sh.bx - C.singlesR));
+  if (sh.serve) side = Math.min(side, Math.abs(sh.bx - 0.5));          // Mittellinie des Aufschlagfelds
   return Math.min(side, Math.abs(bv - lim));
 }
 
@@ -203,9 +204,10 @@ export function makeServe(o, lv, rand = Math.random, opts = {}) {
 
 // ---------- Zählweise ----------
 export const other = r => (r === "A" ? "B" : "A");
-export function freshScore(seq = 0) { return { seq, p: { A: 0, B: 0 }, g: { A: 0, B: 0 }, win: null }; }
-/** Aufschläger: wechselt nach jedem Spiel, A beginnt. */
-export function server(s) { return (s.g.A + s.g.B) % 2 === 0 ? "A" : "B"; }
+/** fs: wer im ersten Spiel aufschlägt (Münzwurf). */
+export function freshScore(seq = 0, fs = "A") { return { seq, p: { A: 0, B: 0 }, g: { A: 0, B: 0 }, win: null, fs }; }
+/** Aufschläger: im ersten Spiel fs, danach abwechselnd nach jedem Spiel. */
+export function server(s) { const f = s.fs === "B" ? "B" : "A"; return (s.g.A + s.g.B) % 2 === 0 ? f : other(f); }
 /** Seite: gerade Punktzahl im Spiel = Einstand-Seite (rechts), ungerade = Vorteil-Seite (links). */
 export function serveSide(s) { return (s.p.A + s.p.B) % 2 === 0 ? "deuce" : "ad"; }
 

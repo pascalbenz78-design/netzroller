@@ -25,11 +25,47 @@ export const T = {
   joinFailed: "Beitreten hat nicht geklappt. Versuch es nochmals.",
   waitingText: "Öffne diese Seite auf dem zweiten Handy und gib dort den Code ein. Sobald beide drin sind, geht es los.",
   share: "Link teilen", shareCopied: "Link kopiert", shareText: "Spiel Netzroller mit mir",
-  cancel: "Abbrechen", again: "Revanche", back: "Zurück zum Start",
+  cancel: "Abbrechen", again: "Revanche", backMenu: "Zurück zum Menü",
   fullscreen: "Vollbild", windowed: "Fenster", giveUp: "Aufgeben",
   turnPhone: "Handy hochkant halten", turnPhoneText: "Netzroller spielt man im Hochformat.",
   superBtn: "Super",
   you: "Du", opponent: "Gegner", computer: "Computer",
+
+  // Hauptmenü
+  hello: name => `Hallo, ${name}`, helloAnon: "Hallo! Deinen Namen setzt du in den Einstellungen.",
+  modeQuick: "Schnelles Spiel", modeQuickSub: "Kurzsatz gegen den Computer",
+  modeDuo: "Zu zweit", modeDuoSub: "Zwei Handys, ein Code",
+  modeMachine: "Ballmaschine", modeCareer: "Karriere", modeDuoTour: "Turnier zu zweit", modeRanking: "Rangliste",
+  soon: "bald",
+  settings: "Einstellungen", introWatch: "Intro ansehen", back: "Zurück",
+  duoTitle: "Zu zweit",
+
+  // Einstellungen
+  profile: "Profil", landLabel: "Land",
+  setSound: "Ton", setVoice: "Schiedsrichter-Stimme", setVibration: "Vibration",
+  setLefty: "Linkshänder (Super-Knopf links)", setSwipe: "Super-Schlag per Wischen", setIntro: "Intro beim Start (höchstens einmal pro Tag)",
+  transfer: "Profil mitnehmen", transferHelp: "Mit dem Code nimmst du Name, Land und Einstellungen auf ein anderes Gerät mit.",
+  exportBtn: "Code anzeigen", copy: "Kopieren", copied: "Code kopiert.", copyManual: "Kopieren ging nicht. Der Code ist markiert, kopiere ihn von Hand.",
+  importPlaceholder: "Code hier einfügen", importBtn: "Profil laden",
+  imported: "Profil geladen.", importBad: "Dieser Code passt nicht. Er beginnt mit «NR1.».",
+  noVoice: "Auf diesem Gerät gibt es keine deutsche Stimme. Die Rufe erscheinen nur als Banner.",
+
+  // Intro
+  introTap: "Antippen", introSkip: "Überspringen",
+
+  // Match-Intro
+  vs: "gegen", quickEvent: lv => `Schnelles Spiel · ${lv}`, duoEvent: lv => `Zu zweit · ${lv}`,
+  firstServe: (who, you) => (you ? "Du schlägst auf" : `${who} schlägt auf`), tapSkip: "Antippen zum Überspringen",
+
+  // Hawk-Eye
+  hawk: "Hawk-Eye", hawkIn: "IN", hawkOut: "AUS",
+
+  // Schiedsrichter (gesprochen)
+  sayOut: "Aus!", sayNet: "Netz!", sayLet: "Let", sayFault: "Fehler", sayDoubleFault: "Doppelfehler",
+  sayDeuce: "Einstand", sayAdv: who => `Vorteil ${who}`,
+  sayGame: who => `Spiel ${who}`, sayMatch: who => `Spiel, Satz und Sieg ${who}`,
+  sayNumbers: ["null", "fünfzehn", "dreissig", "vierzig"],
+  sayAll: n => `${n} beide`,
 
   // Spielverlauf
   start: "Spiel beginnt",

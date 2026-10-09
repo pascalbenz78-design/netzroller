@@ -11,7 +11,11 @@ import { C, clamp, other } from "./rules.js";
 import { T } from "./texts.js";
 import { createAI, aiIncoming, aiIdle, aiStep, aiWantsSuper, aiServeErr, aiServeSpot } from "./ai.js";
 import { connectRoomProvider } from "./net.js";
-import { audioInit, sfx, buzz } from "./audio.js";
+import { audioInit, sfx, buzz, crowd, setSound, setVibration } from "./audio.js";
+import { say, setVoice, hasVoice } from "./voice.js";
+import { loadProfile, saveProfile, today } from "./storage.js";
+import { initUI, showScreen, currentScreen, refreshProfileUI, matchIntro } from "./ui.js";
+import { playIntro } from "./intro.js";
 
 const $ = id => document.getElementById(id);
 const cv = $("cv"), ctx = cv.getContext("2d");
@@ -29,7 +33,8 @@ let W = 1, H = 1, dpr = 1, s = 1, ox = 0, D = 0.8;          // Bildschirm: s px 
 let mode = "idle";                                          // idle | waiting | play | solo
 let room = null, p2pMode = false, game = null, unsub = [];
 let myRole = "A", host = false, oppPeer = null, oppName = T.opponent, oppHere = false;
-let myName = "";
+let myName = "", oppLand = "NR";
+const profile = loadProfile();
 let score = R.freshScore(0), serveNo = 1;
 // Ball: phase idle | serve | toss | oppserve | opptoss | fly | dead | gone | none
 let ball = { phase: "idle", shot: null, from: null, t: 0, tl: null, hold: 0, held: false, ev: {}, tossT: 0, last: null };
@@ -39,6 +44,7 @@ let oppX = 0.5, oppTossT = -1;
 let ai = null, aiTimer = 0, aiErr = 0;
 let mySupers = B.supersPerRally, armed = false;
 let marks = [], flashes = [], trail = [], netShake = 0, resetTok = 0, pending = [], gameTime = 0;
+let rallyStrokes = 0, hawk = null, activeIntro = null;
 
 const playing = () => mode === "play" || mode === "solo";
 const isLocal = role => mode === "solo" || role === myRole;
@@ -52,9 +58,7 @@ function runTimers() {
   due.forEach(p => { if (p.tok === resetTok) p.fn(); });
 }
 
-try { myName = localStorage.getItem("nr-name") || ""; } catch (e) {}
-try { const l = parseInt(localStorage.getItem("nr-level"), 10); if (l >= 0 && l <= 2) level = l; } catch (e) {}
-$("nameIn").value = myName;
+myName = profile.name; level = profile.level;
 const hashCode = (location.hash || "").slice(1).toLowerCase();
 if (/^[a-z0-9]{4}$/.test(hashCode)) $("codeIn").value = hashCode;
 
@@ -65,7 +69,7 @@ function setLevel(i, save) {
   $("lvlHint").textContent = T.levelHints[i];
   px = clamp(px, LV.hw, 1 - LV.hw);
   if (ai) ai.lv = LV;
-  if (save) { try { localStorage.setItem("nr-level", String(i)); } catch (e) {} }
+  if (save) { profile.level = i; saveProfile(profile); }
   renderBoard();
 }
 document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => setLevel(+b.dataset.level, true)));
@@ -105,7 +109,7 @@ cv.addEventListener("pointermove", e => {
   if (!p || p.swiped) return;
   const dy = p.y - e.clientY, dx = Math.abs(e.clientX - p.x);
   // nur eindeutig senkrechtes, schnelles Wischen lädt den Super-Schlag
-  if (dy > B.touch.swipeMin && dy > dx * B.touch.swipeRatio && performance.now() - p.t < B.touch.swipeTime) { p.swiped = true; arm(true); }
+  if (profile.settings.swipe && dy > B.touch.swipeMin && dy > dx * B.touch.swipeRatio && performance.now() - p.t < B.touch.swipeTime) { p.swiped = true; arm(true); }
 });
 function endPointer(e, cancelled) {
   const p = pointers.get(e.pointerId);
@@ -156,6 +160,7 @@ function updateSuperBtn() {
 /** Antippen: beim Aufschlag erst hochwerfen, dann schlagen. */
 function tap() {
   if (!playing()) return;
+  if (hawk) { hawk.t = hawk.dur; return; }
   if (ball.phase === "serve") {
     if (mode === "play" && !oppHere) return;
     ball.phase = "toss"; ball.tossT = 0; sfx.toss();
@@ -172,6 +177,8 @@ function launch(sh, from) {
   ball.phase = "fly"; ball.shot = sh; ball.from = from; ball.t = 0; ball.tl = R.timeline(sh);
   ball.hold = 0; ball.held = false; ball.ev = {}; trail = [];
   if (sh.serve) serveNo = sh.serve;
+  rallyStrokes++;
+  if (activeIntro && from !== myRole) activeIntro.close();
   const p = display(0);
   flashes.push({ x: p.x, y: p.v * D, t: 0, sup: sh.sup });
   if (sh.sup) { banner(T.superShot, true); sfx.superHit(); buzz(35); } else { sfx.hit(sh.s1); if (from === myRole) buzz(18); }
@@ -198,31 +205,48 @@ function aiHit(x) {
 }
 
 /** Ballposition auf diesem Bildschirm: x quer, v längs (+1 = eigene Schlägerlinie). */
-function display(t) {
-  const p = R.at(ball.shot, t);
-  const mine = ball.from === myRole;
+function display(t) { return shotDisplay(ball.shot, ball.from, t); }
+function shotDisplay(sh, from, t) {
+  const p = R.at(sh, t);
+  const mine = from === myRole;
   return { x: mine ? p.x : 1 - p.x, v: mine ? 1 - p.d : p.d - 1, h: p.h, d: p.d, bounced: p.bounced };
+}
+
+/** Banner und Schiedsrichter-Ruf zusammen. */
+function announce(text, speech, hot) { banner(text, hot); if (speech) say(speech); }
+const nameOf = role => (role === myRole ? (myName || T.you) : oppName);
+
+// ---------- Hawk-Eye ----------
+/** Knapper Ball: Aufsprung weniger als einen Balldurchmesser von der Linie entfernt. */
+const closeCall = sh => sh.why !== "net" && R.lineGap(sh) < B.hawk.gap * C.ballR;
+/** Zeigt bei knappen Bällen die Zoom-Wiederholung und macht danach mit then() weiter. */
+function withHawk(sh, from, isIn, then) {
+  if (!closeCall(sh)) { then(); return; }
+  crowd.murmur();
+  hawk = { sh, from, isIn, t: 0, dur: reducedMotion.matches ? B.hawk.durReduced : B.hawk.dur, then };
 }
 
 /** Aus, Netz, Fehler oder Let: Entscheid am Aufsprung (bzw. am Netz). */
 function resolveDead() {
   const sh = ball.shot, from = ball.from, recv = other(from);
   ball.phase = "dead";
-  if (sh.serve) {
-    if (sh.res === "let") {
-      banner(T.let);
-      later(B.timing.faultPause, () => prepareServe());
-    } else if (sh.serve === 1) {
-      banner(sh.why === "net" ? T.net + " " + T.fault : T.fault);
-      later(B.timing.faultPause, () => { serveNo = 2; prepareServe(); });
-    } else {
-      banner(T.doubleFault);
-      if (isLocal(recv)) later(0.5, () => scorePoint(recv));
-    }
+  if (sh.serve && sh.res === "let") {
+    announce(T.let, T.sayLet);
+    later(B.timing.faultPause, () => prepareServe());
     return;
   }
-  banner(sh.why === "net" ? T.net : T.out);
-  if (isLocal(recv)) later(0.5, () => scorePoint(recv));
+  withHawk(sh, from, false, () => {
+    if (sh.serve === 1) {
+      announce(sh.why === "net" ? T.net + " " + T.fault : T.fault, sh.why === "net" ? T.sayNet : T.sayFault);
+      later(B.timing.faultPause, () => { serveNo = 2; prepareServe(); });
+    } else if (sh.serve === 2) {
+      announce(T.doubleFault, T.sayDoubleFault);
+      if (isLocal(recv)) later(0.6, () => scorePoint(recv));
+    } else {
+      announce(sh.why === "net" ? T.net : T.out, sh.why === "net" ? T.sayNet : T.sayOut);
+      if (isLocal(recv)) later(0.6, () => scorePoint(recv));
+    }
+  });
 }
 
 // ---------- Punkte ----------
@@ -236,14 +260,20 @@ function applyScore(s2, mine) {
   score = s2;
   if (mine) publish({ score: s2 });
   pending = []; ++resetTok;
+  if (hawk && !mine) hawk.then = () => {};          // Punkt kam vom anderen Handy: Wiederholung nur noch zeigen
   if (ball.phase !== "dead") ball.phase = "none";
   armed = false;
   renderBoard();
-  if (s2.win) banner(s2.win === myRole ? T.setYou : T.setOpp(oppName));
-  else if (s2.g.A + s2.g.B > prev.g.A + prev.g.B) {
+  if (rallyStrokes >= B.crowd.applauseFrom && s2.seq > prev.seq) crowd.applause(Math.min(1.6, rallyStrokes / B.crowd.applauseFrom));
+  rallyStrokes = 0;
+  if (s2.win) {
+    announce(s2.win === myRole ? T.setYou : T.setOpp(oppName), T.sayMatch(nameOf(s2.win)));
+    crowd.cheer(1.3);
+  } else if (s2.g.A + s2.g.B > prev.g.A + prev.g.B) {
     const w = s2.g.A > prev.g.A ? "A" : "B";
-    banner(w === myRole ? T.gameYou : T.gameOpp(oppName));
-  } else if (s2.p.A || s2.p.B) banner(pointCall(s2));
+    announce(w === myRole ? T.gameYou : T.gameOpp(oppName), T.sayGame(nameOf(w)));
+    crowd.cheer(0.6);
+  } else if (s2.p.A || s2.p.B) announce(pointCall(s2), pointSpeech(s2));
   const fresh = !s2.p.A && !s2.p.B && !s2.g.A && !s2.g.B;
   later(fresh ? 0 : B.timing.pointPause, resetForPoint);
 }
@@ -255,13 +285,14 @@ function resetForPoint() {
   updateSuperBtn();
   if (!playing()) return;
   if (score.win) { ball.phase = "none"; showOver(); return; }
-  $("over").hidden = true;
+  if (currentScreen() === "over") showScreen(null);
   prepareServe();
 }
 
 /** Aufstellung für den nächsten Aufschlag (erster, zweiter oder nach Let). */
 function prepareServe() {
   const side = R.serveSide(score);
+  rallyStrokes = 0;
   if (R.server(score) === myRole) {
     ball.phase = "serve";
     const [a, b] = R.serveZone(side);
@@ -276,6 +307,14 @@ function prepareServe() {
     }
   }
   renderBoard();
+}
+
+/** Spielstand, wie ihn der Schiedsrichter ausruft: «Fünfzehn null», «Dreissig beide», «Vorteil Pascal». */
+function pointSpeech(s2) {
+  const a0 = s2.p[myRole], b0 = s2.p[other(myRole)];
+  if (a0 >= 3 && b0 >= 3) return a0 === b0 ? T.sayDeuce : T.sayAdv(nameOf(a0 > b0 ? myRole : other(myRole)));
+  const N = T.sayNumbers, sv = R.server(s2), a = s2.p[sv], b = s2.p[other(sv)];
+  return a === b ? T.sayAll(N[a]) : N[a] + " " + N[b];
 }
 
 function pointCall(s2) {
@@ -314,7 +353,7 @@ function showOver() {
   const won = score.win === myRole;
   $("overTitle").textContent = won ? T.won : T.lost;
   $("overText").textContent = T.overText(score.g[myRole], score.g[other(myRole)], oppName, LV.name);
-  $("over").hidden = false;
+  showScreen("over");
 }
 
 // ---------- Spiel zu zweit ----------
@@ -356,11 +395,17 @@ function onPeers({ peers }) {
     myRole = host && !theyHost ? "A" : (!host && theyHost ? "B" : (me.peer < opp.peer ? "A" : "B"));
   }
   oppName = cleanName(opp.presence.name) || T.opponent;
+  oppLand = /^[A-Z]{2}$/.test(opp.presence.land || "") ? opp.presence.land : "NR";
   if (typeof opp.presence.px === "number") oppX = clamp(1 - opp.presence.px, 0, 1);
   oppTossT = typeof opp.presence.toss === "number" ? opp.presence.toss : -1;
   // wer das Spiel eröffnet (A), bestimmt die Stufe
   if (myRole === "B" && Number.isInteger(opp.presence.level) && opp.presence.level !== level) setLevel(opp.presence.level, false);
 
+  // Münzwurf des eröffnenden Handys übernehmen, solange noch kein Punkt gespielt ist
+  const sc0 = opp.presence.score;
+  if (myRole === "B" && sc0 && sc0.seq === 0 && score.seq === 0 && (sc0.fs === "A" || sc0.fs === "B") && sc0.fs !== score.fs) {
+    score = { ...score, fs: sc0.fs }; publish({ score });
+  }
   if (mode === "waiting") startMatch();
   else if (!wasHere && mode === "play") resetForPoint();
 
@@ -378,14 +423,14 @@ function onPeers({ peers }) {
 function validScore(x) {
   return x && typeof x.seq === "number" && x.p && x.g &&
     ["A", "B"].every(k => Number.isInteger(x.p[k]) && Number.isInteger(x.g[k]) && x.p[k] >= 0 && x.g[k] >= 0 && x.p[k] < 50 && x.g[k] <= GAMES) &&
-    (x.win === null || x.win === "A" || x.win === "B");
+    (x.win === null || x.win === "A" || x.win === "B") && (x.fs === undefined || x.fs === "A" || x.fs === "B");
 }
 
 async function enterRoom(code, asHost) {
   if (!room) return;
   saveName();
   host = asHost; oppPeer = null; oppHere = false; handled = new Set(); shotN = 0;
-  score = R.freshScore(0);
+  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B");   // Münzwurf: das eröffnende Handy entscheidet
   try {
     note(T.connecting);
     game = await room.join("nr-" + code, asHost);
@@ -395,21 +440,36 @@ async function enterRoom(code, asHost) {
     return;
   }
   mode = "waiting"; inGame(true);
-  $("lobby").hidden = true;
   $("codeOut").textContent = code;
   $("shareBtn").hidden = !p2pMode;
   shareLink = location.origin + location.pathname + "#" + code;
-  $("waiting").hidden = false;
+  showScreen("waiting");
   unsub.push(game.onPeers(onPeers, () => {}));
-  publish({ app: "nr", name: myName, host: asHost, level, px: 0.5, score, shot: null });
+  publish({ app: "nr", name: myName, land: profile.land, host: asHost, level, px: 0.5, score, shot: null });
 }
 
 function startMatch() {
   mode = "play";
-  $("waiting").hidden = true; $("over").hidden = true; $("quit").hidden = false;
+  showScreen(null); $("quit").hidden = false;
+  ball.phase = "none";
   renderBoard();
-  banner(T.start);
-  resetForPoint();
+  beginWithIntro(T.duoEvent(LV.name));
+}
+
+/** Match-Intro mit Münzwurf, danach der erste Aufschlag (ausser es kam schon ein Schlag an). */
+function beginWithIntro(event) {
+  const first = R.server(score) === myRole ? "me" : "opp";
+  activeIntro = matchIntro({
+    me: { name: myName || T.you, land: profile.land, isYou: !myName }, opp: { name: oppName, land: oppLand },
+    event, first, reduced: reducedMotion.matches,
+  });
+  activeIntro.done.then(() => {
+    activeIntro = null;
+    if (!playing() || ball.phase !== "none") return;
+    say(T.firstServe(first === "me" ? myName : oppName, first === "me" && !myName));
+    banner(T.start);
+    resetForPoint();
+  });
 }
 
 async function leave() {
@@ -417,8 +477,9 @@ async function leave() {
   if (game) { try { await game.leave(); } catch (e) {} game = null; }
   pending = []; ++resetTok;
   mode = "idle"; oppPeer = null; oppHere = false; oppName = T.opponent; myRole = "A"; ai = null;
-  ["waiting", "over"].forEach(id => { $(id).hidden = true; });
-  $("quit").hidden = true; $("lobby").hidden = false; inGame(false);
+  if (activeIntro) activeIntro.close();
+  hawk = null;
+  $("quit").hidden = true; showScreen("menu"); inGame(false);
   score = R.freshScore(0); serveNo = 1; armed = false; marks = []; updateSuperBtn();
   ball.phase = "idle"; renderBoard();
 }
@@ -427,8 +488,7 @@ async function leave() {
 function note(t) { $("roomNote").hidden = !t; $("roomNote").textContent = t; }
 function saveName() {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  myName = cleanName($("nameIn").value);
-  try { localStorage.setItem("nr-name", myName); } catch (e) {}
+  myName = profile.name;
 }
 function makeCode() {
   const al = "abcdefghjkmnpqrstuvwxyz23456789"; let c = "";
@@ -449,14 +509,15 @@ $("quit").onclick = () => {
   if (mode === "solo" && (score.win || !score.seq)) { leave(); return; }
   if (playing() && !score.win) { const s2 = { ...JSON.parse(JSON.stringify(score)), seq: score.seq + 1, win: other(myRole) }; applyScore(s2, true); }
 };
-$("againBtn").onclick = () => applyScore(R.freshScore(score.seq + 1), true);
+$("againBtn").onclick = () => applyScore(R.freshScore(score.seq + 1, other(score.fs || "A")), true);
 $("soloBtn").onclick = () => {
   audioInit(); saveName(); goFullscreen();
-  mode = "solo"; myRole = "A"; oppName = T.computer; oppHere = true;
+  mode = "solo"; myRole = "A"; oppName = T.computer; oppLand = "NR"; oppHere = true;
   ai = createAI(LV); oppX = 0.5;
-  score = R.freshScore(0); marks = [];
-  $("lobby").hidden = true; $("quit").hidden = false; inGame(true);
-  renderBoard(); banner(T.start); resetForPoint();
+  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B"); marks = [];
+  showScreen(null); $("quit").hidden = false; inGame(true);
+  ball.phase = "none"; renderBoard();
+  beginWithIntro(T.quickEvent(LV.name));
 };
 
 let shareLink = "";
@@ -499,6 +560,11 @@ function frame(now) {
 
 function step(dt) {
   gameTime += dt;
+  if (hawk) {
+    hawk.t += dt;
+    if (hawk.t >= hawk.dur) { const then = hawk.then; hawk = null; then(); }
+    return;
+  }
   runTimers();
   // Tastatur: Schläger beschleunigt bis auf etwa doppeltes Tempo
   const dir = (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
@@ -552,7 +618,7 @@ function stepFlight(dt) {
   if (!ball.ev.net && ball.t >= tl.tNet) {
     ball.ev.net = true;
     if (sh.why === "net") { sfx.net(); netShake = 1; later(0.35, resolveDead); ball.phase = "dead"; ball.last = p; return; }
-    if (sh.nc) { sfx.tock(); netShake = 1; banner(T.netcord, true); buzz(25); }
+    if (sh.nc) { sfx.tock(); netShake = 1; announce(T.netcord, null, true); buzz(25); }
   }
   // Aufsprung: Ballabdruck, bei Aus/Fehler/Let sofort entschieden
   if (!ball.ev.bounce && sh.why !== "net" && ball.t >= tl.tBounce) {
@@ -561,6 +627,7 @@ function stepFlight(dt) {
     marks.push({ x: bp.x, y: bp.v * D, t: 0, out: sh.res !== "in" && sh.res !== "let" });
     sfx.bounce();
     if (sh.res !== "in") { ball.last = bp; resolveDead(); return; }
+    if (closeCall(sh)) crowd.murmur();
   }
   if (sh.res !== "in" || !p.bounced) return;
 
@@ -568,10 +635,10 @@ function stepFlight(dt) {
   const d = p.d, line = 2 - HIT_LINE;
   if (recv === myRole) {
     if (d >= line && prevD <= 2 + 0.06 && Math.abs(p.x - px) <= reach()) { myHit(p.x); return; }
-    if (d > MISS_D) { ball.phase = "gone"; if (isLocal(recv)) later(0.2, () => scorePoint(ball.from)); }
+    if (d > MISS_D) { ball.phase = "gone"; const s0 = sh, f0 = ball.from; later(0.2, () => withHawk(s0, f0, true, () => scorePoint(f0))); }
   } else if (mode === "solo") {
     if (d >= line && prevD <= 2 + 0.06 && Math.abs(p.x - oppX) <= reach()) { aiHit(p.x); return; }
-    if (d > MISS_D) { ball.phase = "gone"; later(0.2, () => scorePoint(myRole)); }
+    if (d > MISS_D) { ball.phase = "gone"; const s0 = sh, f0 = ball.from; later(0.2, () => withHawk(s0, f0, true, () => scorePoint(myRole))); }
   } else {
     // Gegner auf dem anderen Handy: am Schläger kurz halten, bis sein Rückschlag eintrifft
     if (!ball.held && d >= line && d <= 2 + 0.06 && Math.abs(p.x - oppX) <= reach()) { ball.held = true; ball.hold = B.timing.holdMax; }
@@ -585,12 +652,8 @@ function draw() {
   ctx.fillStyle = css("--surround"); ctx.fillRect(0, 0, W, H);
   ctx.setTransform(s * dpr, 0, 0, s * dpr, ox * dpr, (H / 2) * dpr);
 
-  const bl = C.baseline * D, sl = C.serviceLine * D, white = css("--line"), lw = 0.008;
-  ctx.fillStyle = css("--court"); ctx.fillRect(C.doublesL, -bl, C.doublesR - C.doublesL, bl * 2);
-  // Doppelgassen sind Aus: dunkler
-  ctx.fillStyle = "rgba(0,0,0,.16)";
-  ctx.fillRect(C.doublesL, -bl, C.singlesL - C.doublesL, bl * 2);
-  ctx.fillRect(C.singlesR, -bl, C.doublesR - C.singlesR, bl * 2);
+  const bl = C.baseline * D, sl = C.serviceLine * D, white = css("--line");
+  drawCourtSurface();
 
   // Aufschlagfeld leuchtet beim Aufschlag dezent
   const side = R.serveSide(score);
@@ -602,16 +665,6 @@ function draw() {
     ctx.fillStyle = "rgba(223,242,60,.10)"; ctx.fillRect(1 - b1, 0, b1 - b0, sl);
   }
 
-  ctx.strokeStyle = white; ctx.lineWidth = lw;
-  line(C.doublesL + lw / 2, -bl, C.doublesL + lw / 2, bl);
-  line(C.doublesR - lw / 2, -bl, C.doublesR - lw / 2, bl);
-  line(C.singlesL, -bl, C.singlesL, bl);
-  line(C.singlesR, -bl, C.singlesR, bl);
-  line(C.singlesL, sl, C.singlesR, sl);
-  line(C.singlesL, -sl, C.singlesR, -sl);
-  line(0.5, -sl, 0.5, sl);
-  ctx.lineWidth = lw * 1.6; line(C.doublesL, bl, C.doublesR, bl); line(C.doublesL, -bl, C.doublesR, -bl);
-  ctx.lineWidth = lw; line(0.5, bl, 0.5, bl - 0.03); line(0.5, -bl, 0.5, -bl + 0.03);
 
   // Ballabdrücke (bei Aus zusätzlich beschriftet, nicht nur farbig)
   marks.forEach(m => {
@@ -642,6 +695,7 @@ function draw() {
   drawRacket(px, D, 1, armed);
 
   drawBall(showOpp);
+  if (hawk) { drawHawk(); return; }
 
   flashes.forEach(f => {
     ctx.globalAlpha = 1 - f.t / 0.35; ctx.strokeStyle = f.sup ? css("--super") : css("--line"); ctx.lineWidth = f.sup ? 0.008 : 0.005;
@@ -664,6 +718,67 @@ function draw() {
       ctx.fillText(T.serve2.toUpperCase(), 0.5, D * 0.42 - 0.065);
     }
   }
+}
+
+/** Platzfläche mit Gassen und allen Linien (ohne Netz), in Platzeinheiten. */
+function drawCourtSurface() {
+  const bl = C.baseline * D, sl = C.serviceLine * D, lw = 0.008;
+  ctx.fillStyle = css("--court"); ctx.fillRect(C.doublesL, -bl, C.doublesR - C.doublesL, bl * 2);
+  // Doppelgassen sind Aus: dunkler
+  ctx.fillStyle = "rgba(0,0,0,.16)";
+  ctx.fillRect(C.doublesL, -bl, C.singlesL - C.doublesL, bl * 2);
+  ctx.fillRect(C.singlesR, -bl, C.doublesR - C.singlesR, bl * 2);
+  ctx.strokeStyle = css("--line"); ctx.lineWidth = lw;
+  line(C.doublesL + lw / 2, -bl, C.doublesL + lw / 2, bl);
+  line(C.doublesR - lw / 2, -bl, C.doublesR - lw / 2, bl);
+  line(C.singlesL, -bl, C.singlesL, bl);
+  line(C.singlesR, -bl, C.singlesR, bl);
+  line(C.singlesL, sl, C.singlesR, sl);
+  line(C.singlesL, -sl, C.singlesR, -sl);
+  line(0.5, -sl, 0.5, sl);
+  ctx.lineWidth = lw * 1.6; line(C.doublesL, bl, C.doublesR, bl); line(C.doublesL, -bl, C.doublesR, -bl);
+  ctx.lineWidth = lw; line(0.5, bl, 0.5, bl - 0.03); line(0.5, -bl, 0.5, -bl + 0.03);
+}
+
+/** Hawk-Eye: Zoom auf den Aufsprung, Ball in Zeitlupe, Abdruck, Entscheid IN oder AUS. */
+function drawHawk() {
+  const h = hawk, sh = h.sh, tl = R.timeline(sh);
+  const bp = shotDisplay(sh, h.from, tl.tBounce), gx = bp.x, gy = bp.v * D;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(4,12,10,.62)"; ctx.fillRect(0, 0, W, H);
+  const P = Math.min(W - 32, H * 0.55), wx = (W - P) / 2, wy = (H - P) / 2, k = P / 0.24;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(wx, wy, P, P); ctx.clip();
+  ctx.fillStyle = css("--surround"); ctx.fillRect(wx, wy, P, P);
+  ctx.setTransform(k * dpr, 0, 0, k * dpr, (wx + P / 2 - gx * k) * dpr, (wy + P / 2 - gy * k) * dpr);
+  drawCourtSurface();
+  const u = h.t / h.dur, R0 = C.ballR;
+  if (u < 0.55) {
+    // die letzten 0,25 s vor dem Aufsprung in Zeitlupe
+    const p = shotDisplay(sh, h.from, tl.tBounce - 0.25 + (u / 0.55) * 0.25), y = p.v * D;
+    circle(p.x + p.h * 0.15, y + 0.004, R0 * 0.95, "rgba(0,0,0,.3)");
+    circle(p.x, y - p.h * 0.9, R0 * (1 + p.h * 2.2), css("--ball"));
+  } else {
+    ctx.beginPath(); ctx.ellipse(gx, gy, R0 * 1.25, R0 * 0.85, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.fill();
+    ctx.lineWidth = 0.002; ctx.strokeStyle = h.isIn ? "#ffffff" : css("--super"); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 2; ctx.strokeRect(wx, wy, P, P);
+  ctx.fillStyle = "rgba(15,42,34,.85)"; ctx.fillRect(wx, wy, 96, 26);
+  ctx.fillStyle = "#f4f7f2"; ctx.font = "700 14px 'Barlow Condensed', system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillText(T.hawk.toUpperCase(), wx + 10, wy + 13);
+  if (u >= 0.6) {
+    const label = h.isIn ? T.hawkIn : T.hawkOut;
+    ctx.font = "800 44px 'Barlow Condensed', system-ui, sans-serif"; ctx.textAlign = "center";
+    const tw = ctx.measureText(label).width + 36;
+    ctx.fillStyle = h.isIn ? "rgba(15,42,34,.92)" : css("--super");
+    ctx.fillRect(W / 2 - tw / 2, wy + P - 64, tw, 52);
+    ctx.fillStyle = h.isIn ? css("--ball") : "#0f2a22";
+    ctx.fillText(label, W / 2, wy + P - 37);
+  }
+  ctx.textBaseline = "alphabetic";
 }
 
 function drawBall(showOpp) {
@@ -757,7 +872,25 @@ function autopilot(dt) {
 }
 /** Spielt sec Sekunden Spielzeit sofort durch (ohne Bildschirm), mit Autopilot. */
 function runFor(sec, dt = 1 / 60) { for (let t = 0; t < sec; t += dt) { if (test.auto) autopilot(dt); step(dt); } }
-window.__netzroller = { test, runFor, get state() { return { mode, phase: ball.phase, score, serveNo, myRole, px, oppX, shot: ball.shot }; } };
+window.__netzroller = { test, runFor, get state() { return { mode, phase: ball.phase, score, serveNo, myRole, px, oppX, shot: ball.shot, hawk: hawk && { isIn: hawk.isIn, t: hawk.t } }; } };
+
+// ---------- Einstellungen, Intro, Menü ----------
+function applySettings(p) {
+  setSound(p.settings.sound); setVoice(p.settings.voice); setVibration(p.settings.vibration);
+  superBtn.classList.toggle("lefty", p.settings.lefty);
+  myName = p.name;
+  $("noVoice").hidden = !p.settings.voice || hasVoice();
+  renderBoard();
+}
+function runIntro() {
+  showScreen(null);
+  return playIntro({ root: $("intro"), canvas: $("introCv"), skip: $("introSkip"), tapHint: $("introTap"), reduced: reducedMotion.matches })
+    .then(() => { profile.introSeen = today(); saveProfile(profile); showScreen(/^[a-z0-9]{4}$/.test(hashCode) ? "duo" : "menu"); });
+}
+initUI({ profile, onChange: applySettings, onIntro: runIntro });
+applySettings(profile);
 
 resize(); setLevel(level, false); renderBoard();
+if (profile.settings.intro && profile.introSeen !== today()) runIntro();
+else showScreen(/^[a-z0-9]{4}$/.test(hashCode) ? "duo" : "menu");
 requestAnimationFrame(frame);

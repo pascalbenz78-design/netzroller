@@ -86,6 +86,10 @@ export const BALANCE = {
   keyboard: { start: 0.8, max: 2.8, accel: 6.0 },     // Platzbreiten/s, Beschleunigung pro s
   touch: { swipeMin: 70, swipeRatio: 2.5, swipeTime: 300 },
 
+  // Hawk-Eye: knapp = Aufsprung näher an der Linie als gap × Ballradius (2 = ein Balldurchmesser)
+  hawk: { gap: 2, dur: 1.7, durReduced: 0.8 },
+  crowd: { applauseFrom: 8 },      // Applaus ab so vielen Schlägen im Ballwechsel
+
   match: { gamesToWin: 3 },
   timing: { pointPause: 0.9, faultPause: 0.8, holdMax: 1.2, aiServeDelay: [0.6, 1.0] },
 };
