@@ -26,6 +26,7 @@ Tennisspiel für den Browser (Draufsicht), zwei Handys gegeneinander oder allein
 | `js/balance.js` | alle Zahlenwerte (`BALANCE`) |
 | `js/rules.js` | Regeln: Schlag-Datensatz, Flugbahn, Aus/Netz/Let, Aufschlag, Zählweise |
 | `js/ai.js` | Computergegner (gleiche Schnittstelle wie ein Mensch) |
+| `js/machine.js` | Ballmaschine: Leben, Kombo, Zielscheiben, Tempo, Highscore |
 | `js/main.js` | Spielablauf, Eingabe, Zeichnen, Hawk-Eye, Spiel zu zweit |
 | `js/ui.js` | Hauptmenü, Zu zweit, Einstellungen, Match-Intro mit Münzwurf |
 | `js/intro.js` | Stadion-Intro (Canvas und Web Audio) |
@@ -43,6 +44,7 @@ Tennisspiel für den Browser (Draufsicht), zwei Handys gegeneinander oder allein
 ```bash
 node tools/serve.mjs 8080          # lokal starten: http://localhost:8080 (Module brauchen http://)
 node tools/simulate.mjs 500        # Balance prüfen (Punkte pro Stufe, optional Startwert)
+node tools/simulate.mjs machine 300  # Ballmaschine: Dauer eines Durchgangs
 ```
 
 **Automatischer Test im Browser** (Konsole der laufenden Seite):
@@ -55,7 +57,8 @@ document.getElementById("matchIntro").dispatchEvent(new PointerEvent("pointerdow
 await new Promise(r => setTimeout(r, 50));
 __netzroller.runFor(300);          // 300 s Spielzeit sofort durchrechnen
 __netzroller.test.pause = true;    // Spiel anhalten (Bild bleibt), z. B. für Bildschirmfotos
-__netzroller.state;                // mode, phase, score, serveNo, hawk, …
+__netzroller.state;                // mode, phase, score, serveNo, hawk, run (Ballmaschine), …
+document.getElementById("machineBtn").click();   // Ballmaschine (der Autopilot spielt auch hier)
 ```
 
 Für zwei Spieler: zwei Tabs, einer eröffnet, einer tritt mit dem Code bei, in beiden den Autopiloten einschalten und mit `setInterval(() => __netzroller.runFor(0.1), 30)` antreiben. Am Ende müssen beide denselben Spielstand haben.
@@ -67,8 +70,8 @@ Für zwei Spieler: zwei Tabs, einer eröffnet, einer tritt mit dem Code bei, in 
 | Phase | Inhalt | Stand |
 |---|---|---|
 | 1 | Tennisgefühl: Aus, Aufschlag, Netz, Netzroller, Balance, Steuerung | abgenommen |
-| 2 | Präsentation: Intro, Match-Intro, Hawk-Eye, Stimme, Publikum, Hauptmenü, Einstellungen | **fertig, wartet auf Abnahme** |
-| 3 | Ballmaschine (Endlos-Modus, Highscore) | offen |
+| 2 | Präsentation: Intro, Match-Intro, Hawk-Eye, Stimme, Publikum, Hauptmenü, Einstellungen | abgenommen |
+| 3 | Ballmaschine (Endlos-Modus, Highscore) | **fertig, wartet auf Abnahme** |
 | 4 | Stabile Verbindung (Herzschlag, Pause, Wiederverbinden) | offen |
 | 5 | Karriere (Tour, Turniere, Rangliste) | offen |
 | 6 | Turnier zu zweit, Weltrangliste mit Supabase | offen |
@@ -97,3 +100,14 @@ Erledigt:
 - Publikum: Raunen, Applaus ab 8 Schlägen, Jubel bei Spiel- und Satzgewinn.
 - Hauptmenü mit allen Modi (noch nicht verfügbare ausgegraut), Einstellungen mit Profil (Name, Land), Ton, Stimme, Vibration, Linkshänder, Wischen, Intro, Export/Import.
 - Getestet: Einstellungen, Export/Import, Linkshänder, ein Satz gegen den Computer mit Stimme und Hawk-Eye, ein Satz zu zweit über zwei Tabs mit gleichem Münzwurf, gleichem Spielstand und Revanche.
+
+### Phase 3 im Detail
+
+Erledigt:
+- Ballmaschine: wird mit jedem Rückschlag 2,5 % schneller, ohne Obergrenze; Winkel werden schärfer, ab dem 12. Rückschlag Bälle mit Effekt.
+- 3 Leben (verpasst, Aus, Netz), nach einem verlorenen Leben 10 % langsamer.
+- Zielscheiben (Bonus 5, mit Super 10), Kombo ×2 ab 10, ×3 ab 25, ×4 ab 50.
+- Eigene Anzeige (Punkte, Kombo, Leben, km/h), Endbildschirm mit Top 10, Feuerwerk bei neuem Rekord.
+- Rangliste im Menü (lokale Top 10), Highscores im Profil und im Export-Code.
+- Simulation der Durchgangsdauer: geübt ≈ 2½ min, Gelegenheit ≈ 2 min.
+- Getestet: ganzer Durchgang mit Autopilot bis «Neuer Rekord!», Highscore nach Neuladen in der Rangliste, Satz gegen den Computer und Spiel zu zweit weiterhin fehlerfrei.

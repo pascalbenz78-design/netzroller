@@ -7,7 +7,7 @@ const CODE_PREFIX = "NR1.";
 export const DEFAULT_SETTINGS = { sound: true, voice: true, vibration: true, lefty: false, swipe: true, intro: true };
 
 function defaults() {
-  return { v: 1, name: "", land: "CH", level: 1, settings: { ...DEFAULT_SETTINGS }, introSeen: "" };
+  return { v: 1, name: "", land: "CH", level: 1, settings: { ...DEFAULT_SETTINGS }, introSeen: "", highscores: [] };
 }
 
 /** Übernimmt nur bekannte Felder mit gültigen Werten. */
@@ -21,7 +21,22 @@ function sanitize(src) {
     for (const k of Object.keys(DEFAULT_SETTINGS)) if (typeof src.settings[k] === "boolean") p.settings[k] = src.settings[k];
   }
   if (typeof src.introSeen === "string") p.introSeen = src.introSeen.slice(0, 10);
+  if (Array.isArray(src.highscores)) p.highscores = cleanHighscores(src.highscores);
   return p;
+}
+
+/** Ballmaschine-Highscores: nur gültige Einträge, höchstens 10, absteigend. */
+function cleanHighscores(list) {
+  return list
+    .filter(e => e && typeof e === "object" && Number.isInteger(e.points) && e.points >= 0 && e.points < 1e7)
+    .map(e => ({
+      name: String(e.name || "").replace(/[^\p{L}\p{N} ._-]/gu, "").trim().slice(0, 14) || "?",
+      points: e.points,
+      date: /^\d{4}-\d{2}-\d{2}$/.test(e.date) ? e.date : "",
+      kmh: Number.isInteger(e.kmh) && e.kmh >= 0 && e.kmh < 5000 ? e.kmh : 0,
+    }))
+    .sort((a, b) => b.points - a.points)
+    .slice(0, 10);
 }
 
 export function loadProfile() {
@@ -46,8 +61,8 @@ function toB64(str) { return btoa(unescape(encodeURIComponent(str))).replace(/\+
 function fromB64(b) { b = b.replace(/-/g, "+").replace(/_/g, "/"); while (b.length % 4) b += "="; return decodeURIComponent(escape(atob(b))); }
 
 export function exportCode(p) {
-  const { name, land, level, settings } = p;
-  return CODE_PREFIX + toB64(JSON.stringify({ v: 1, name, land, level, settings }));
+  const { name, land, level, settings, highscores } = p;
+  return CODE_PREFIX + toB64(JSON.stringify({ v: 1, name, land, level, settings, highscores }));
 }
 
 /** Liest einen Code; wirft einen Fehler, wenn er nicht passt. Gibt ein vollständiges Profil zurück. */

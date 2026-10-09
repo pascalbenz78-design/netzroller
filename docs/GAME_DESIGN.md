@@ -310,6 +310,20 @@ Laufend nachgeführt. Jeder Eintrag: was entschieden wurde und warum.
 29. **Noch nicht verfügbare Modi** stehen im Hauptmenü ausgegraut mit «bald». Sie tun nicht so, als wären sie fertig, zeigen aber, was kommt.
 30. **Linkshänder und Wischen** sind jetzt in den Einstellungen umstellbar (aus Phase 1 vorbereitet).
 
+### Phase 3
+
+31. **Die Maschine schlägt nicht zurück wie ein Gegner.** Sobald dein Rückschlag in ihrer Hälfte aufspringt, zählt er, und 0,3 s später kommt der nächste Ball. So bleibt der Rhythmus flüssig.
+32. **Ein Rückschlag zählt, wenn er im Feld aufspringt.** Aus und Netz kosten ein Leben, genauso wie ein verpasster Ball. Ein langsamer Ball nach einem Rahmentreffer zählt, solange er im Feld landet.
+33. **Ohne Obergrenze** heisst: Die Reaktionszeit-Untergrenze aus Phase 1 gilt für die Maschine nicht. Dein eigener Rückschlag bleibt beim Höchsttempo der Stufe, denn die Maschine muss ihn nicht erreichen.
+34. **Nach einem verlorenen Leben wird die Maschine 10 % langsamer** (`machine.afterError`). Sonst wären die restlichen Leben bei hohem Tempo in Sekunden weg, ohne echte Chance.
+35. **Effekt (Kurve)** ab dem 12. Rückschlag in 45 % der Bälle. Die Kurve ist so gebaut, dass der Aufsprungpunkt exakt bleibt; nach dem Aufsprung springt der Ball zur Seite weg.
+36. **Zielscheiben:** zwei gleichzeitig, ohne sich zu überdecken. Sie wandern nach 9 s weiter und werden mit der Zeit kleiner. Getroffen ist eine Scheibe, wenn der Ball sie beim Aufsprung berührt. Bonus 5 Punkte, mit Super-Schlag 10, jeweils mal Kombo-Multiplikator.
+37. **Super-Schläge:** zwei pro Leben, weil ein Durchgang kein Ballwechsel im üblichen Sinn ist.
+38. **Stufe:** Die gewählte Stufe bestimmt das Starttempo und die Schlägerbreite.
+39. **Highscore** steht im Profil (lokale Top 10 mit Name, Punkten, Datum, Höchsttempo) und reist mit dem Export-Code mit. Aufgeben zählt als beendeter Durchgang. Die Rangliste im Menü zeigt diese Top 10; die Weltrangliste folgt in Phase 6.
+40. **Tempo-Anzeige in km/h** ist eine Umrechnung des Spieltempos (1 Platzhälfte ≈ 13 m). Ohne Obergrenze können die Zahlen unrealistisch hoch werden, das ist gewollt.
+41. **Dauer eines Durchgangs** wurde mit zwei Spielermodellen simuliert (siehe unten). Das Modell «geübter Spieler» zielt meist sicher in die Mitte, wie man es gegen eine Maschine tut.
+
 ---
 
 ## Balance-Auswertung
@@ -332,5 +346,16 @@ Gegenprobe mit 3000 Punkten pro Stufe (`node tools/simulate.mjs 3000`):
 | Schwer | 8.3 | 6 | 18.7 % | 6.3 % | 3.0 % | 72.0 % | 10.6 % | 30.0 % | 954 | 137 | 0.29 s (min. 0.26) |
 
 **Bewertung (Mittel):** Ballwechsel im Mittel 7 bis 8 Schläge, Aus 13 bis 15 %, Doppelfehler 4 bis 6 %: alle drei Richtwerte erfüllt. Die kürzeste Flugzeit liegt auf jeder Stufe über der Untergrenze. Netzroller kommen in etwa jedem 25. Ball vor, der das Netz überquert.
+
+### Ballmaschine
+
+Erzeugt mit `node tools/simulate.mjs machine 300`. Der Computergegner spielt als Ersatz für einen Menschen; «geübter Spieler»: schneller Schläger, zielt genauer, kaum Winkel.
+
+| Spieler | Dauer Ø | Dauer Median | Punkte Ø | Rückschläge Ø | beste Kombo Ø | Höchsttempo Ø |
+|---|---|---|---|---|---|---|
+| Gelegenheitsspieler | 2:05 | 2:14 | 149 | 55 | 36 | 190 km/h |
+| geübter Spieler | 2:25 | 2:28 | 231 | 77 | 53 | 309 km/h |
+
+**Bewertung:** Ein geübter Spieler kommt im Mittel auf knapp 2½ Minuten pro Durchgang, ein Gelegenheitsspieler auf gut 2 Minuten. Der Richtwert «2 bis 5 Minuten» ist erfüllt. Stellschrauben: `machine.growth` (Tempozuwachs pro Rückschlag), `machine.lives`, `machine.afterError`.
 
 **Hinweis:** Die Simulation misst den Computer gegen sich selbst. Wie sich ein Satz für einen Menschen anfühlt, entscheidet der Test am Handy. Die wichtigsten Stellschrauben dafür: `levels[].ai.err` (Treffsicherheit des Computers), `zones` (Risiko der Schlägerkante), `serve.first/second` (Zeitfenster beim Aufschlag).

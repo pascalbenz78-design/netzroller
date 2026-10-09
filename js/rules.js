@@ -69,9 +69,21 @@ export function at(sh, t) {
 }
 
 export function xAt(sh, d) {
-  if (d <= 1) return sh.x0 + (sh.xn - sh.x0) * d;
-  const slope = (sh.bx - sh.xn) / Math.max(sh.bd - 1, 0.02);
-  return sh.xn + slope * (d - 1);
+  let x;
+  if (d <= 1) x = sh.x0 + (sh.xn - sh.x0) * d;
+  else x = sh.xn + ((sh.bx - sh.xn) / Math.max(sh.bd - 1, 0.02)) * (d - 1);
+  return sh.cv ? x + curve(sh, d) : x;
+}
+
+/**
+ * Effekt (nur Ballmaschine): seitliche Kurve, die am Schlag und am Aufsprung null ist.
+ * Der Aufsprungpunkt bleibt so exakt wie berechnet. Nach dem Aufsprung springt der Ball
+ * in Richtung des Effekts weg (Tangente der Kurve).
+ */
+function curve(sh, d) {
+  const b = sh.bd, k = 4 * sh.cv / (b * b);
+  if (d <= b) return k * d * (b - d);
+  return -k * b * (d - b);
 }
 
 /** Begrenzt das Tempo so, dass der Empfänger mindestens minReaction Sekunden hat. */
@@ -151,6 +163,27 @@ export function makeRallyShot(o, lv, rand = Math.random, opts = {}) {
   sh.xn = sh.x0 + (sh.bx - sh.x0) / sh.bd;
   judge(sh);
   return finish(sh, lv, rand, opts);
+}
+
+// ---------- Ballmaschine ----------
+/**
+ * Ball der Maschine (Blick der Maschine, sie steht bei v = +1). Immer im Feld, ohne Reaktions-Untergrenze.
+ * @param o.x0     Position der Maschine
+ * @param o.speed  Tempo (d/s), ohne Obergrenze
+ * @param o.spread wie weit nach aussen gezielt wird (0 = Mitte, 1 = bis an die Seitenlinie)
+ * @param o.cv     Effekt: seitliche Kurve in Platzbreiten (0 = gerade)
+ */
+export function makeMachineShot(o, rand = Math.random, opts = {}) {
+  const bx = 0.5 + (rand() * 2 - 1) * o.spread * SH * 0.92;
+  const f = uni(rand, B.depth.normal);
+  const bv = clamp(C.serviceLine + f * (C.baseline - C.serviceLine), 0.12, C.bounceMax);
+  const sh = { kind: "machine", x0: o.x0, bx, bd: 1 + bv, s1: o.speed, s2: o.speed, why: null, nc: false,
+               serve: 0, sup: false, ns: o.speed, frame: false, res: "in", cv: o.cv || 0 };
+  sh.xn = sh.x0 + (sh.bx - sh.x0) / sh.bd;
+  finish(sh, null, rand, { ...opts, noFloor: true });
+  // ein Netzroller darf den Maschinenball nicht ins Aus lenken
+  if (sh.res !== "in") { sh.bx = clamp(sh.bx, C.singlesL + 0.03, C.singlesR - 0.03); sh.res = "in"; sh.why = null; }
+  return sh;
 }
 
 // ---------- Aufschlag ----------

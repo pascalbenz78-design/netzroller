@@ -11,7 +11,9 @@ Beim ersten Start am Tag läuft ein kurzes Intro im Stadion (antippen übersprin
 - **Schnelles Spiel:** ein Kurzsatz gegen den Computer, Stufe darüber wählbar.
 - **Zu zweit:** zwei Handys, ein Code (siehe unten).
 - **Einstellungen:** Name und Land (für die Flagge), Ton, Schiedsrichter-Stimme, Vibration, Linkshänder (Super-Knopf links), Super-Schlag per Wischen, Intro beim Start. Mit **Profil mitnehmen** bekommst du einen Code, den du auf einem anderen Gerät wieder einfügst.
-- Ballmaschine, Karriere, Turnier zu zweit und Rangliste kommen später dazu.
+- **Ballmaschine:** Endlos-Modus mit Highscore (siehe unten).
+- **Rangliste:** deine Top 10 gegen die Ballmaschine auf diesem Gerät.
+- Karriere und Turnier zu zweit kommen später dazu.
 
 Vor jedem Match stellt ein kurzes Intro beide Spieler mit Flagge vor, eine Münze entscheidet, wer zuerst aufschlägt.
 
@@ -78,6 +80,16 @@ Wie im Tennis: 15, 30, 40, Einstand, Vorteil. Wer zuerst **3 Spiele** gewinnt, h
 | Schwer | startet schnell und wird rasch schneller | schmal | trifft genauer, spielt mehr Winkel und Super-Schläge |
 
 Zu zweit gilt die Stufe von der Person, die das Spiel eröffnet.
+
+## Ballmaschine
+
+Oben steht eine Ballmaschine statt eines Gegners. Jeder Ball, den du zurückspielst, macht den nächsten etwas schneller, ohne Obergrenze. Mit der Zeit kommen schärfere Winkel und Bälle mit Effekt dazu, die nach dem Aufsprung zur Seite springen.
+
+- Du hast **3 Leben**. Ein verpasster Ball oder ein Ball ins Aus oder ins Netz kostet eines. Danach wird die Maschine etwas langsamer.
+- **Punkte:** 1 pro Rückschlag. Spielst du ohne Fehler weiter, steigt der Multiplikator: ×2 ab 10 Rückschlägen, ×3 ab 25, ×4 ab 50.
+- **Zielscheiben:** Triffst du eine, gibt es 5 Bonuspunkte, mit einem Super-Schlag 10 (jeweils mal Multiplikator). Die Scheiben wandern weiter und werden mit der Zeit kleiner.
+- Pro Leben hast du 2 Super-Schläge.
+- Am Ende siehst du deine Top 10. Bei einem neuen Rekord gibt es ein Feuerwerk.
 
 ## Technik
 

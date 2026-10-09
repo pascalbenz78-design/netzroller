@@ -7,7 +7,7 @@ import { exportCode, importCode, saveProfile } from "./storage.js";
 import { hasVoice } from "./voice.js";
 
 const $ = id => document.getElementById(id);
-const SCREENS = ["menu", "duo", "settings", "waiting", "over"];
+const SCREENS = ["menu", "duo", "settings", "ranking", "waiting", "over"];
 
 /** Zeigt genau eine Menü-Seite (oder keine, mit null). */
 export function showScreen(id) {
@@ -31,6 +31,8 @@ export function initUI({ profile, onChange, onIntro }) {
   $("duoBtn").onclick = () => showScreen("duo");
   $("settingsBtn").onclick = () => { fillSettings(profile); showScreen("settings"); };
   $("duoBack").onclick = () => showScreen("menu");
+  $("rankBtn").onclick = () => { renderHighscores($("rankList"), profile.highscores); $("rankEmpty").hidden = profile.highscores.length > 0; showScreen("ranking"); };
+  $("rankBack").onclick = () => showScreen("menu");
   $("settingsBack").onclick = () => showScreen("menu");
   $("introBtn").onclick = () => onIntro();
   $("introBtn2").onclick = () => onIntro();
@@ -76,6 +78,23 @@ export function refreshProfileUI(p) {
   $("greetName").textContent = p.name ? T.hello(p.name) : T.helloAnon;
   $("greetLand").textContent = countryName(p.land);
   requestAnimationFrame(() => paintFlag($("greetFlag"), p.land));
+}
+
+// ---------- Rangliste ----------
+/** Schreibt die Top 10 in eine <ol>. Der Eintrag `mark` (gerade gespielt) wird hervorgehoben. */
+export function renderHighscores(ol, list, mark) {
+  ol.textContent = "";
+  list.forEach((e, i) => {
+    const li = document.createElement("li");
+    if (e === mark) li.className = "mine";
+    const rank = document.createElement("span"); rank.className = "hs-rank"; rank.textContent = String(i + 1);
+    const name = document.createElement("span"); name.className = "hs-name"; name.textContent = e.name;
+    const pts = document.createElement("span"); pts.className = "hs-pts"; pts.textContent = T.rankPoints(e.points);
+    const meta = document.createElement("span"); meta.className = "hs-meta";
+    meta.textContent = T.rankKmh(e.kmh) + (e.date ? " · " + e.date.split("-").reverse().join(".") : "");
+    li.append(rank, name, pts, meta);
+    ol.appendChild(li);
+  });
 }
 
 // ---------- Match-Intro ----------

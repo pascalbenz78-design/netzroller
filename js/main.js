@@ -16,6 +16,8 @@ import { say, setVoice, hasVoice } from "./voice.js";
 import { loadProfile, saveProfile, today } from "./storage.js";
 import { initUI, showScreen, currentScreen, refreshProfileUI, matchIntro } from "./ui.js";
 import { playIntro } from "./intro.js";
+import * as MA from "./machine.js";
+import { renderHighscores } from "./ui.js";
 
 const $ = id => document.getElementById(id);
 const cv = $("cv"), ctx = cv.getContext("2d");
@@ -45,9 +47,10 @@ let ai = null, aiTimer = 0, aiErr = 0;
 let mySupers = B.supersPerRally, armed = false;
 let marks = [], flashes = [], trail = [], netShake = 0, resetTok = 0, pending = [], gameTime = 0;
 let rallyStrokes = 0, hawk = null, activeIntro = null;
+let run = null, popups = [], fireworks = [], fwTimer = 0, machineFlash = 0;   // Ballmaschine
 
-const playing = () => mode === "play" || mode === "solo";
-const isLocal = role => mode === "solo" || role === myRole;
+const playing = () => mode === "play" || mode === "solo" || mode === "machine";
+const isLocal = role => mode !== "play" || role === myRole;
 const reach = () => LV.hw + C.ballR;
 /** Verzögert in Spielzeit (läuft mit der Spielschleife, auch im Schnelltest). */
 const later = (sec, fn) => { pending.push({ at: gameTime + sec, fn, tok: resetTok }); };
@@ -242,15 +245,21 @@ function resolveDead() {
       later(B.timing.faultPause, () => { serveNo = 2; prepareServe(); });
     } else if (sh.serve === 2) {
       announce(T.doubleFault, T.sayDoubleFault);
-      if (isLocal(recv)) later(0.6, () => scorePoint(recv));
+      if (isLocal(recv)) later(0.6, () => awardPoint(recv));
     } else {
       announce(sh.why === "net" ? T.net : T.out, sh.why === "net" ? T.sayNet : T.sayOut);
-      if (isLocal(recv)) later(0.6, () => scorePoint(recv));
+      if (isLocal(recv)) later(0.6, () => awardPoint(recv));
     }
   });
 }
 
 // ---------- Punkte ----------
+/** Punkt entschieden. In der Ballmaschine kostet jeder Fehler ein Leben, es gibt keinen Punktestand. */
+function awardPoint(w) {
+  if (mode === "machine") { if (w !== myRole) machineError(); return; }
+  scorePoint(w);
+}
+
 function scorePoint(w) {
   if (w === myRole) sfx.won(); else { sfx.lost(); buzz([40, 40, 40]); }
   applyScore(R.addPoint(score, w, GAMES), true);
@@ -284,7 +293,7 @@ function resetForPoint() {
   mySupers = B.supersPerRally; armed = false; serveNo = 1;
   if (ai) ai.supers = B.supersPerRally;
   updateSuperBtn();
-  if (!playing()) return;
+  if (!playing() || mode === "machine") return;
   if (score.win) { ball.phase = "none"; showOver(); return; }
   if (currentScreen() === "over") showScreen(null);
   prepareServe();
@@ -327,6 +336,18 @@ function pointCall(s2) {
 
 // ---------- Anzeige ----------
 function renderBoard() {
+  const isMachine = mode === "machine" && run;
+  $("board").hidden = !!isMachine; $("mboard").hidden = !isMachine;
+  if (isMachine) {
+    const mult = MA.multiplier(run.combo), L = B.machine.lives;
+    $("mPoints").textContent = run.points;
+    $("mCombo").textContent = run.combo + (mult > 1 ? " ×" + mult : "");
+    $("mLives").textContent = "●".repeat(Math.max(0, run.lives)) + "○".repeat(L - Math.max(0, run.lives));
+    $("mLives").setAttribute("aria-label", T.livesAria(Math.max(0, run.lives), L));
+    $("mSpeed").textContent = MA.kmh(run.speed);
+    $("status").textContent = T.machineStatus(LV.name, run.returns);
+    return;
+  }
   const me = myRole, op = other(myRole);
   $("nameMe").textContent = myName || T.you; $("nameOp").textContent = oppName;
   $("gMe").textContent = score.g[me]; $("gOp").textContent = score.g[op];
@@ -351,6 +372,7 @@ function banner(t, hot) {
 }
 
 function showOver() {
+  $("overList").hidden = true; $("againBtn").textContent = T.again;
   const won = score.win === myRole;
   $("overTitle").textContent = won ? T.won : T.lost;
   $("overText").textContent = T.overText(score.g[myRole], score.g[other(myRole)], oppName, LV.name);
@@ -479,7 +501,7 @@ async function leave() {
   pending = []; ++resetTok;
   mode = "idle"; oppPeer = null; oppHere = false; oppName = T.opponent; myRole = "A"; ai = null;
   if (activeIntro) activeIntro.close();
-  hawk = null;
+  hawk = null; run = null; popups = []; fireworks = []; fwTimer = 0;
   $("quit").hidden = true; showScreen("menu"); inGame(false);
   score = R.freshScore(0); serveNo = 1; armed = false; marks = []; updateSuperBtn();
   ball.phase = "idle"; renderBoard();
@@ -507,10 +529,11 @@ $("codeIn").addEventListener("keydown", e => { if (e.key === "Enter") $("joinBtn
 $("cancelBtn").onclick = leave;
 $("leaveBtn").onclick = leave;
 $("quit").onclick = () => {
+  if (mode === "machine") { if (run && !run.over) { pending = []; ++resetTok; endRun(); } else leave(); return; }
   if (mode === "solo" && (score.win || !score.seq)) { leave(); return; }
   if (playing() && !score.win) { const s2 = { ...JSON.parse(JSON.stringify(score)), seq: score.seq + 1, win: other(myRole) }; applyScore(s2, true); }
 };
-$("againBtn").onclick = () => applyScore(R.freshScore(score.seq + 1, other(score.fs || "A")), true);
+$("againBtn").onclick = () => (mode === "machine" ? startMachine() : applyScore(R.freshScore(score.seq + 1, other(score.fs || "A")), true));
 $("soloBtn").onclick = () => {
   audioInit(); saveName(); goFullscreen();
   mode = "solo"; myRole = "A"; oppName = T.computer; oppLand = "NR"; oppHere = true;
@@ -581,6 +604,10 @@ function step(dt) {
   if (mode === "solo" && ai) { aiStep(ai, dt); oppX = 1 - ai.x; }
 
   flashes.forEach(f => { f.t += dt; }); flashes = flashes.filter(f => f.t < 0.35);
+  if (mode === "machine" && run && !run.over) MA.stepTargets(run, dt);
+  popups.forEach(q => { q.t += dt; }); popups = popups.filter(q => q.t < 1);
+  machineFlash = Math.max(0, machineFlash - dt);
+  stepFireworks(dt);
   marks.forEach(m => { m.t += dt; }); marks = marks.filter(m => m.t < 2.2);
   netShake = Math.max(0, netShake - dt * 2.5);
 
@@ -629,6 +656,7 @@ function stepFlight(dt) {
     sfx.bounce();
     if (sh.res !== "in") { ball.last = bp; resolveDead(); return; }
     if (closeCall(sh)) crowd.murmur();
+    if (mode === "machine" && ball.from === myRole) machineReturn(sh, bp);
   }
   if (sh.res !== "in" || !p.bounced) return;
 
@@ -636,7 +664,9 @@ function stepFlight(dt) {
   const d = p.d, line = 2 - HIT_LINE;
   if (recv === myRole) {
     if (d >= line && prevD <= 2 + 0.06 && Math.abs(p.x - px) <= reach()) { myHit(p.x); return; }
-    if (d > MISS_D) { ball.phase = "gone"; const s0 = sh, f0 = ball.from; later(0.2, () => withHawk(s0, f0, true, () => scorePoint(f0))); }
+    if (d > MISS_D) { ball.phase = "gone"; const s0 = sh, f0 = ball.from; later(0.2, () => withHawk(s0, f0, true, () => awardPoint(f0))); }
+  } else if (mode === "machine") {
+    if (d > MISS_D) ball.phase = "gone";
   } else if (mode === "solo") {
     if (d >= line && prevD <= 2 + 0.06 && Math.abs(p.x - oppX) <= reach()) { aiHit(p.x); return; }
     if (d > MISS_D) { ball.phase = "gone"; const s0 = sh, f0 = ball.from; later(0.2, () => withHawk(s0, f0, true, () => scorePoint(myRole))); }
@@ -692,10 +722,13 @@ function draw() {
 
   // Schläger: Gegner oben (Griff nach oben), du unten
   const showOpp = mode === "solo" || (mode === "play" && oppHere);
-  if (showOpp) drawRacket(oppX, -D, -1, false);
+  if (mode === "machine") { drawTargets(); drawMachine(); }
+  else if (showOpp) drawRacket(oppX, -D, -1, false);
   drawRacket(px, D, 1, armed);
 
   drawBall(showOpp);
+  drawPopups();
+  drawFireworks();
   if (hawk) { drawHawk(); return; }
 
   flashes.forEach(f => {
@@ -874,7 +907,130 @@ function autopilot(dt) {
 }
 /** Spielt sec Sekunden Spielzeit sofort durch (ohne Bildschirm), mit Autopilot. */
 function runFor(sec, dt = 1 / 60) { for (let t = 0; t < sec; t += dt) { if (test.auto) autopilot(dt); step(dt); } }
-window.__netzroller = { test, runFor, get state() { return { mode, phase: ball.phase, score, serveNo, myRole, px, oppX, shot: ball.shot, hawk: hawk && { isIn: hawk.isIn, t: hawk.t } }; } };
+window.__netzroller = { test, runFor, get state() { return { mode, phase: ball.phase, score, serveNo, myRole, px, oppX, shot: ball.shot, hawk: hawk && { isIn: hawk.isIn, t: hawk.t }, run: run && { lives: run.lives, points: run.points, combo: run.combo, returns: run.returns, speed: run.speed, over: run.over } }; } };
+
+// ---------- Ballmaschine ----------
+function startMachine() {
+  audioInit(); saveName(); goFullscreen();
+  pending = []; ++resetTok;
+  mode = "machine"; myRole = "A"; oppName = T.machine; oppHere = true; ai = null;
+  run = MA.createRun(LV); oppX = run.machineX;
+  marks = []; popups = []; fireworks = []; fwTimer = 0; rallyStrokes = 0;
+  showScreen(null); $("quit").hidden = false; inGame(true);
+  mySupers = B.machine.supersPerLife; armed = false; updateSuperBtn();
+  ball.phase = "none"; renderBoard();
+  announce(T.machineStart, null);
+  later(B.machine.firstDelay, fireMachine);
+}
+
+function fireMachine() {
+  if (mode !== "machine" || !run || run.over) return;
+  const sh = MA.nextMachineShot(run);
+  oppX = run.machineX; machineFlash = 0.25;
+  launch(sh, "B");
+  renderBoard();
+}
+
+/** Dein Rückschlag ist im Feld der Maschine aufgesprungen. */
+function machineReturn(sh, bp) {
+  const r = MA.onReturn(run, bp.x, bp.v, sh.sup);
+  popups.push({ x: bp.x, y: bp.v * D, t: 0, text: "+" + r.gained, hot: !!r.target });
+  if (r.target) { announce(T.targetHit(r.gained), null, true); sfx.won(); burst(bp.x, bp.v * D, 18); }
+  else if (B.machine.combo.some(([from]) => from === run.combo)) { announce(T.comboUp(r.mult), null, true); crowd.applause(0.5); }
+  renderBoard();
+  later(B.machine.nextDelay, fireMachine);
+}
+
+/** Verpasst oder ins Aus/Netz: ein Leben weniger. */
+function machineError() {
+  sfx.lost(); buzz([40, 40, 40]);
+  const left = MA.onError(run);
+  renderBoard();
+  if (left <= 0) { endRun(); return; }
+  announce(T.lifeLost(left), null);
+  mySupers = B.machine.supersPerLife; armed = false; updateSuperBtn();
+  later(B.machine.firstDelay, fireMachine);
+}
+
+/** Durchgang vorbei: in die Top 10 eintragen, bei neuem Rekord Feuerwerk. */
+function endRun() {
+  run.over = true; ball.phase = "none";
+  const entry = { name: myName || T.you, points: run.points, date: today(), kmh: MA.kmh(run.maxSpeed) };
+  const rank = MA.addHighscore(profile.highscores, entry);
+  saveProfile(profile);
+  const record = rank === 0 && run.points > 0;
+  $("overTitle").textContent = record ? T.newRecord : T.runOver;
+  $("overText").textContent = T.runText(run.points, run.bestCombo, entry.kmh);
+  renderHighscores($("overList"), profile.highscores, entry);
+  $("overList").hidden = false;
+  $("againBtn").textContent = T.againMachine;
+  renderBoard();
+  if (record) {
+    announce(T.newRecord, T.newRecord, true); crowd.cheer(1.4);
+    if (!reducedMotion.matches) { fwTimer = 2.6; later(2.6, () => showScreen("over")); return; }
+  } else crowd.applause(0.6);
+  showScreen("over");
+}
+
+// ---------- Feuerwerk (nur Darstellung, in Bildschirm-Pixeln) ----------
+function burst(x, y, n, inPx) {
+  const cols = [css("--ball"), css("--super"), "#ffffff", "#7fd3ff", "#ff6b8b"];
+  const cx = inPx ? x : ox + x * s, cy = inPx ? y : H / 2 + y * s;
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 160;
+    fireworks.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 0.8 + Math.random() * 0.6, c: cols[i % cols.length] });
+  }
+}
+function stepFireworks(dt) {
+  if (fwTimer > 0) {
+    fwTimer -= dt;
+    if (Math.random() < dt * 3.2) burst(W * (0.15 + Math.random() * 0.7), H * (0.12 + Math.random() * 0.4), 46, true);
+  }
+  fireworks.forEach(f => { f.t += dt; f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 140 * dt; f.vx *= 0.99; });
+  fireworks = fireworks.filter(f => f.t < f.life);
+}
+function drawFireworks() {
+  if (!fireworks.length) return;
+  ctx.save(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  fireworks.forEach(f => { ctx.globalAlpha = Math.max(0, 1 - f.t / f.life); ctx.fillStyle = f.c; ctx.fillRect(f.x - 2, f.y - 2, 4, 4); });
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+
+function drawTargets() {
+  if (!run) return;
+  run.targets.forEach(t => {
+    const fade = Math.min(1, (B.machine.targets.ttl - t.age) / 1.2, t.age / 0.3);
+    const cy = t.v * D, ry = t.r * D;
+    ctx.globalAlpha = Math.max(0, fade);
+    ctx.beginPath(); ctx.ellipse(t.x, cy, t.r, ry, 0, 0, Math.PI * 2); ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(t.x, cy, t.r * 0.68, ry * 0.68, 0, 0, Math.PI * 2); ctx.fillStyle = css("--super"); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(t.x, cy, t.r * 0.34, ry * 0.34, 0, 0, Math.PI * 2); ctx.fillStyle = "rgba(255,255,255,.95)"; ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+}
+
+/** Die Ballmaschine oben hinter der Grundlinie. */
+function drawMachine() {
+  const x = oppX, y = -D;
+  ctx.fillStyle = "#1a1a1a"; roundRect(x - 0.13, y - 0.11, 0.26, 0.1, 0.02); ctx.fill();
+  ctx.fillStyle = css("--ball");
+  for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(x - 0.11 + i * 0.05, y - 0.03); ctx.lineTo(x - 0.09 + i * 0.05, y - 0.03); ctx.lineTo(x - 0.065 + i * 0.05, y - 0.06); ctx.lineTo(x - 0.085 + i * 0.05, y - 0.06); ctx.fill(); }
+  ctx.fillStyle = "#2b2b2b"; roundRect(x - 0.03, y - 0.03, 0.06, 0.05, 0.01); ctx.fill();          // Rohr
+  for (let i = 0; i < 4; i++) circle(x - 0.075 + i * 0.05, y - 0.095, 0.016, css("--ball"));      // Bälle im Korb
+  if (machineFlash > 0) { ctx.globalAlpha = machineFlash / 0.25; circle(x, y + 0.03, 0.04, "rgba(255,255,255,.8)"); ctx.globalAlpha = 1; }
+}
+
+function drawPopups() {
+  popups.forEach(q => {
+    ctx.globalAlpha = 1 - q.t;
+    ctx.fillStyle = q.hot ? css("--super") : css("--line");
+    ctx.font = "800 0.06px 'Barlow Condensed', system-ui, sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(q.text, q.x, q.y - 0.05 - q.t * 0.08);
+    ctx.globalAlpha = 1;
+  });
+}
+
+$("machineBtn").onclick = startMachine;
 
 // ---------- Einstellungen, Intro, Menü ----------
 function applySettings(p) {

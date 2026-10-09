@@ -90,6 +90,25 @@ export const BALANCE = {
   hawk: { gap: 2, dur: 1.7, durReduced: 0.8 },
   crowd: { applauseFrom: 8 },      // Applaus ab so vielen Schlägen im Ballwechsel
 
+  // Ballmaschine (Endlos-Modus): wird mit jedem Rückschlag schneller, ohne Obergrenze
+  machine: {
+    lives: 3,
+    startSpeed: 1.0,          // × Grundtempo der Stufe
+    growth: 1.025,             // pro zurückgespieltem Ball
+    afterError: 0.9,          // nach einem verlorenen Leben wird die Maschine etwas langsamer
+    firstDelay: 1.4,          // s bis zum ersten Ball (und nach einem verlorenen Leben)
+    nextDelay: 0.3,           // s nach dem Aufsprung deines Rückschlags bis zum nächsten Ball
+    spread: { start: 0.35, perReturn: 0.012, max: 1.0 },          // Winkel: zuerst mittig, dann bis an die Linie
+    spin: { from: 12, chance: 0.45, amount: [0.04, 0.11] },        // Effekt ab dem 12. Rückschlag
+    moveRange: [0.3, 0.7],    // die Maschine verschiebt sich zwischen den Bällen
+    supersPerLife: 2,
+    pointsPerReturn: 1,
+    combo: [[50, 4], [25, 3], [10, 2]],                            // ab so vielen Rückschlägen ohne Fehler: × Punkte
+    targets: { count: 2, r: 0.08, rMin: 0.05, shrinkPer: 0.0006, ttl: 9, bonus: 5, superMult: 2, area: [0.18, 0.84] },
+    kmhPerSpeed: 47,          // Anzeige: Tempo (d/s) in km/h, Platz ≈ 13 m pro d
+    topCount: 10,
+  },
+
   match: { gamesToWin: 3 },
   timing: { pointPause: 0.9, faultPause: 0.8, holdMax: 1.2, aiServeDelay: [0.6, 1.0] },
 };

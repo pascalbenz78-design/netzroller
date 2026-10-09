@@ -40,6 +40,22 @@ export const T = {
   settings: "Einstellungen", introWatch: "Intro ansehen", back: "Zurück",
   duoTitle: "Zu zweit",
 
+  modeMachineSub: "Endlos, mit Highscore", modeRankingSub: "Deine Top 10",
+
+  // Ballmaschine
+  machine: "Ballmaschine", machineStart: "Ballmaschine läuft",
+  machineStatus: (lv, n) => `Ballmaschine · ${lv} · ${n} Rückschläge`,
+  mPoints: "Punkte", mCombo: "Kombo", mLives: "Leben", mSpeed: "km/h",
+  livesAria: (n, m) => `${n} von ${m} Leben`,
+  targetHit: n => `Ziel! +${n}`, comboUp: m => `Kombo ×${m}`,
+  lifeLost: n => (n === 1 ? "Noch 1 Leben" : `Noch ${n} Leben`),
+  runOver: "Durchgang vorbei", newRecord: "Neuer Rekord!", againMachine: "Nochmal",
+  runText: (p, c, k) => `${p} Punkte · beste Kombo ${c} · bis ${k} km/h`,
+  ranking: "Rangliste", rankingSub: "Ballmaschine · deine Top 10 auf diesem Gerät",
+  rankingEmpty: "Noch keine Einträge. Spiel eine Runde gegen die Ballmaschine.",
+  rankingWorld: "Die Weltrangliste mit Familie und Freunden kommt in einer späteren Version.",
+  rankPoints: n => `${n} P.`, rankKmh: k => `${k} km/h`,
+
   // Einstellungen
   profile: "Profil", landLabel: "Land",
   setSound: "Ton", setVoice: "Schiedsrichter-Stimme", setVibration: "Vibration",

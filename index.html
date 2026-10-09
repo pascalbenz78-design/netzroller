@@ -186,6 +186,21 @@ select:focus-visible { outline: 2px solid var(--ball); outline-offset: 2px; }
 .mi-result { min-height: 30px; font: 800 26px var(--display); text-transform: uppercase; }
 .mi-skip { text-align: center; margin: 0; }
 @media (prefers-reduced-motion: reduce) { .mi-card { transition: none; } #introTap { animation: none; } }
+
+/* ---------- Phase 3: Ballmaschine, Rangliste ---------- */
+#mboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin: 8px 16px 0; background: var(--board); border-radius: 6px; overflow: hidden; touch-action: none; }
+#mboard div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; background: var(--board); }
+#mboard div:first-child { background: var(--ball); color: var(--board); }
+#mboard div:first-child span { color: var(--board-2); }
+#mboard span { font: 500 11px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+#mboard b { font: 800 clamp(18px, 5.5vw, 24px) var(--display); font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: .04em; }
+ol.hs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+ol.hs li { display: grid; grid-template-columns: 2em 1fr auto; grid-template-rows: auto auto; column-gap: 8px; align-items: baseline; padding: 6px 10px; background: var(--board-2); border-radius: 6px; }
+ol.hs li.mine { outline: 2px solid var(--ball); }
+.hs-rank { grid-row: 1 / 3; font: 800 22px var(--display); color: var(--muted); }
+.hs-name { font: 700 17px var(--display); text-transform: uppercase; letter-spacing: .03em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-pts { font: 800 18px var(--display); font-variant-numeric: tabular-nums; color: var(--ball); }
+.hs-meta { grid-column: 2 / 4; font-size: 12px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -201,6 +216,12 @@ select:focus-visible { outline: 2px solid var(--ball); outline-offset: 2px; }
   <div id="board" aria-live="polite">
     <div class="row"><div class="who"><i class="srv" id="srvOp"></i><span id="nameOp">Gegner</span></div><div class="g" id="gOp">0</div><div class="p" id="pOp">0</div></div>
     <div class="row"><div class="who"><i class="srv" id="srvMe"></i><span id="nameMe">Du</span></div><div class="g" id="gMe">0</div><div class="p" id="pMe">0</div></div>
+  </div>
+  <div id="mboard" hidden aria-live="polite">
+    <div><span data-t="mPoints">Punkte</span><b id="mPoints">0</b></div>
+    <div><span data-t="mCombo">Kombo</span><b id="mCombo">0</b></div>
+    <div><span data-t="mLives">Leben</span><b id="mLives">●●●</b></div>
+    <div><span data-t="mSpeed">km/h</span><b id="mSpeed">0</b></div>
   </div>
   <div id="topbar">
     <div id="status">Kurzsatz · wer zuerst 3 Spiele gewinnt</div>
@@ -229,10 +250,10 @@ select:focus-visible { outline: 2px solid var(--ball); outline-offset: 2px; }
         <div class="modes">
           <button class="mode primary" id="soloBtn"><span data-t="modeQuick">Schnelles Spiel</span><small data-t="modeQuickSub">Kurzsatz gegen den Computer</small></button>
           <button class="mode" id="duoBtn"><span data-t="modeDuo">Zu zweit</span><small data-t="modeDuoSub">Zwei Handys, ein Code</small></button>
-          <button class="mode" disabled><span data-t="modeMachine">Ballmaschine</span><small data-t="soon">bald</small></button>
+          <button class="mode" id="machineBtn"><span data-t="modeMachine">Ballmaschine</span><small data-t="modeMachineSub">Endlos, mit Highscore</small></button>
           <button class="mode" disabled><span data-t="modeCareer">Karriere</span><small data-t="soon">bald</small></button>
           <button class="mode" disabled><span data-t="modeDuoTour">Turnier zu zweit</span><small data-t="soon">bald</small></button>
-          <button class="mode" disabled><span data-t="modeRanking">Rangliste</span><small data-t="soon">bald</small></button>
+          <button class="mode" id="rankBtn"><span data-t="modeRanking">Rangliste</span><small data-t="modeRankingSub">Deine Top 10</small></button>
         </div>
         <div class="row2">
           <button class="ghost" id="settingsBtn" data-t="settings">Einstellungen</button>
@@ -298,6 +319,18 @@ select:focus-visible { outline: 2px solid var(--ball); outline-offset: 2px; }
       </div>
     </div>
 
+    <!-- Rangliste -->
+    <div class="sheet" id="ranking" hidden>
+      <div class="card">
+        <div class="big" data-t="ranking">Rangliste</div>
+        <p class="small" data-t="rankingSub">Ballmaschine · deine Top 10 auf diesem Gerät</p>
+        <ol class="hs" id="rankList"></ol>
+        <p class="small" id="rankEmpty" data-t="rankingEmpty"></p>
+        <p class="small" data-t="rankingWorld"></p>
+        <button id="rankBack" data-t="back">Zurück</button>
+      </div>
+    </div>
+
     <div class="sheet" id="waiting" hidden>
       <div class="card">
         <label data-t="codeLabel">Spielcode</label>
@@ -312,6 +345,7 @@ select:focus-visible { outline: 2px solid var(--ball); outline-offset: 2px; }
       <div class="card">
         <div class="big" id="overTitle">Satz</div>
         <p class="small" id="overText" style="text-align:center"></p>
+        <ol class="hs" id="overList" hidden></ol>
         <button id="againBtn" data-t="again">Revanche</button>
         <button class="ghost" id="leaveBtn" data-t="backMenu">Zurück zum Menü</button>
       </div>
