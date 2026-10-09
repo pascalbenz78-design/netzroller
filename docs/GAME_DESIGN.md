@@ -295,6 +295,21 @@ Laufend nachgeführt. Jeder Eintrag: was entschieden wurde und warum.
 17. **Super-Knopf** sitzt unten rechts im grünen Bereich unter der Grundlinie (66 × 66 px). Die Umstellung auf links (Klasse `lefty`) ist vorbereitet; der Schalter dafür kommt mit dem Einstellungsmenü in Phase 2.
 18. **Netzroller-Wahrscheinlichkeit** ist pro Ball, der das Netz überquert, 4 %. Ein Netzroller landet kurz hinter dem Netz (v 0,10 bis 0,32) mit halbem Tempo. Beim Aufschlag ergibt er im Feld ein Let.
 
+### Phase 2
+
+19. **Intro und Ton:** Browser spielen Töne erst nach einem Antippen ab. Ist der Ton beim Start noch gesperrt, zeigt das Intro das dunkle Stadion mit «Antippen». Der erste Tipp startet das Intro mit Ton, jeder weitere Tipp überspringt es. «Überspringen» oben rechts beendet es sofort. Aus dem Menü gestartet (nach einem Klick) läuft es sofort mit Ton.
+20. **Intro höchstens einmal pro Tag automatisch:** Das Datum wird im Profil gespeichert (`introSeen`), sobald das Intro fertig ist oder übersprungen wurde. In den Einstellungen lässt sich das automatische Intro ganz abschalten.
+21. **Hawk-Eye nur bei knappen Bällen, die einen Punkt entscheiden:** bei Aus, Fehlern beim Aufschlag und bei Bällen, die knapp drin waren und nicht mehr erreicht wurden. Ein knapper Ball mitten im Ballwechsel erzeugt nur ein Raunen im Publikum; das Spiel anzuhalten, würde den Ballwechsel zerstören (und zu zweit beide Handys auseinanderbringen). Knapp heisst: Aufsprung näher als ein Balldurchmesser an der Linie (`BALANCE.hawk.gap`). Beim Aufschlag zählt auch die Mittellinie des Aufschlagfelds.
+22. **Hawk-Eye hält das Spiel an:** Während der Wiederholung (1,7 s, bei reduzierter Bewegung 0,8 s) laufen keine Spielschritte und keine Verzögerungen weiter. Antippen springt zum Ende. Zu zweit zeigen beide Handys die Wiederholung; vergeben wird der Punkt weiterhin nur vom zuständigen Handy (siehe Entscheid 3). Kommt der Punkt vom anderen Handy, während die Wiederholung noch läuft, wird sie nur noch zu Ende gezeigt.
+23. **Münzwurf um den Aufschlag:** Das Spielstand-Objekt hat neu ein Feld `fs` (wer im ersten Spiel aufschlägt). Allein würfelt das eigene Handy, zu zweit das eröffnende. Das beitretende Handy übernimmt den Wurf, solange noch kein Punkt gespielt ist. Bei einer Revanche schlägt der andere zuerst auf.
+24. **Match-Intro und erster Schlag zu zweit:** Wer das Match-Intro schneller überspringt, kann schon aufschlagen. Kommt beim anderen Handy ein Schlag an, schliesst sich dessen Intro sofort.
+25. **Schiedsrichter-Stimme** ruft auch den Spielstand aus («Fünfzehn null», «Dreissig beide», «Vorteil Pascal»), Punkte des Aufschlägers zuerst. Eine Schweizer Stimme (`de-CH`) wird bevorzugt, sonst eine deutsche. Ohne deutsche Stimme bleiben nur die Banner, die Einstellungen zeigen dann einen Hinweis.
+26. **Publikum:** Raunen bei knappen Bällen und Netzroller-Momenten im Intro, Applaus ab 8 Schlägen (`BALANCE.crowd.applauseFrom`), Jubel bei jedem Spielgewinn und stärker beim Satzgewinn. Alles mit gefiltertem Rauschen erzeugt.
+27. **Profil:** Name, Land, Stufe und Einstellungen liegen in einem Objekt (`localStorage` «nr-profile»). Name und Stufe aus Phase 1 werden beim ersten Start übernommen. Der Export-Code («NR1.» + Base64) enthält Name, Land, Stufe und Einstellungen; ab Phase 3 kommen Highscores und Karriere dazu.
+28. **Flaggen werden gezeichnet** (32 Länder, vereinfachte Formen), weil Flaggen-Emojis unter Windows fehlen. Der Computer im schnellen Spiel hat statt einer Flagge einen Tennisball.
+29. **Noch nicht verfügbare Modi** stehen im Hauptmenü ausgegraut mit «bald». Sie tun nicht so, als wären sie fertig, zeigen aber, was kommt.
+30. **Linkshänder und Wischen** sind jetzt in den Einstellungen umstellbar (aus Phase 1 vorbereitet).
+
 ---
 
 ## Balance-Auswertung

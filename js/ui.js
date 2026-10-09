@@ -4,6 +4,7 @@
 import { T } from "./texts.js";
 import { COUNTRIES, paintFlag, drawFlag, countryName } from "./flags.js";
 import { exportCode, importCode, saveProfile } from "./storage.js";
+import { hasVoice } from "./voice.js";
 
 const $ = id => document.getElementById(id);
 const SCREENS = ["menu", "duo", "settings", "waiting", "over"];
@@ -40,7 +41,7 @@ export function initUI({ profile, onChange, onIntro }) {
 
   // Schalter
   const toggles = { setSound: "sound", setVoice: "voice", setVibration: "vibration", setLefty: "lefty", setSwipe: "swipe", setIntro: "intro" };
-  Object.entries(toggles).forEach(([id, key]) => $(id).addEventListener("change", () => { profile.settings[key] = $(id).checked; save(); }));
+  Object.entries(toggles).forEach(([id, key]) => $(id).addEventListener("change", () => { profile.settings[key] = $(id).checked; save(); fillSettings(profile); }));
 
   // Export / Import
   $("exportBtn").onclick = () => { $("exportOut").value = exportCode(profile); $("exportRow").hidden = false; $("exportOut").select(); };
@@ -67,6 +68,7 @@ function fillSettings(p) {
   $("setVibration").checked = p.settings.vibration; $("setLefty").checked = p.settings.lefty;
   $("setSwipe").checked = p.settings.swipe; $("setIntro").checked = p.settings.intro;
   $("exportRow").hidden = true; $("settingsMsg").hidden = true;
+  $("noVoice").hidden = !p.settings.voice || hasVoice();   // Stimmen lädt der Browser erst nach dem Start
 }
 
 /** Begrüssung im Hauptmenü mit Name und Flagge. */

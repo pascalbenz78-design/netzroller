@@ -223,6 +223,7 @@ const closeCall = sh => sh.why !== "net" && R.lineGap(sh) < B.hawk.gap * C.ballR
 function withHawk(sh, from, isIn, then) {
   if (!closeCall(sh)) { then(); return; }
   crowd.murmur();
+  clearTimeout(bannerT); $("banner").classList.remove("show");
   hawk = { sh, from, isIn, t: 0, dur: reducedMotion.matches ? B.hawk.durReduced : B.hawk.dur, then };
 }
 
@@ -553,7 +554,7 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.033); last = now;
   // Testmodus: mehrere Schritte pro Bild, damit ein automatisch gespielter Satz schnell durchläuft
-  for (let k = 0; k < test.speed; k++) { try { if (test.auto) autopilot(dt); step(dt); } catch (e) { console.error(e); } }
+  for (let k = 0; k < (test.pause ? 0 : test.speed); k++) { try { if (test.auto) autopilot(dt); step(dt); } catch (e) { console.error(e); } }
   draw();
   requestAnimationFrame(frame);
 }
@@ -754,8 +755,9 @@ function drawHawk() {
   drawCourtSurface();
   const u = h.t / h.dur, R0 = C.ballR;
   if (u < 0.55) {
-    // die letzten 0,25 s vor dem Aufsprung in Zeitlupe
-    const p = shotDisplay(sh, h.from, tl.tBounce - 0.25 + (u / 0.55) * 0.25), y = p.v * D;
+    // Zeitlupe über die letzten 0,11 Platzbreiten vor dem Aufsprung (so bleibt der Ball im Zoom-Fenster)
+    const span = Math.min(0.25, 0.11 / Math.max(0.05, sh.s2 * D));
+    const p = shotDisplay(sh, h.from, tl.tBounce - span + (u / 0.55) * span), y = p.v * D;
     circle(p.x + p.h * 0.15, y + 0.004, R0 * 0.95, "rgba(0,0,0,.3)");
     circle(p.x, y - p.h * 0.9, R0 * (1 + p.h * 2.2), css("--ball"));
   } else {
@@ -856,7 +858,7 @@ function cleanName(x) { return String(x || "").replace(/[^\p{L}\p{N} ._-]/gu, ""
 
 // ---------- Automatischer Test (nur über die Konsole: __netzroller.test.auto = true) ----------
 // Spielt die eigene Seite wie ein Mensch: Schläger zum Ball ziehen, Aufschlag mit Timing.
-const test = { auto: false, speed: 1, spread: 0.6 };   // spread: Treffpunkt-Streuung des Autopiloten (> 1 = verpasst manchmal)
+const test = { auto: false, speed: 1, spread: 0.6, pause: false };   // spread: Treffpunkt-Streuung des Autopiloten (> 1 = verpasst manchmal); pause: Spiel anhalten, Bild bleibt
 function autopilot(dt) {
   if (!playing()) return;
   if (ball.phase === "serve") { tap(); return; }
