@@ -187,6 +187,12 @@ select:focus-visible { outline: 2px solid var(--ball); outline-offset: 2px; }
 .mi-skip { text-align: center; margin: 0; }
 @media (prefers-reduced-motion: reduce) { .mi-card { transition: none; } #introTap { animation: none; } }
 
+/* ---------- Phase 4: Verbindung ---------- */
+#netPause { z-index: 4; }
+.spinner { width: 34px; height: 34px; margin: 4px auto; border-radius: 50%; border: 4px solid var(--board-2); border-top-color: var(--ball); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
 /* ---------- Phase 3: Ballmaschine, Rangliste ---------- */
 #mboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin: 8px 16px 0; background: var(--board); border-radius: 6px; overflow: hidden; touch-action: none; }
 #mboard div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; background: var(--board); }
@@ -269,6 +275,7 @@ ol.hs li.mine { outline: 2px solid var(--ball); }
     <div class="sheet" id="duo" hidden>
       <div class="card">
         <div class="big" data-t="duoTitle">Zu zweit</div>
+        <button id="resumeBtn" hidden>Spiel fortsetzen</button>
         <button id="hostBtn" disabled data-t="host">Spiel eröffnen</button>
         <div class="or" data-t="orJoin">oder beitreten</div>
         <div class="joinrow">
@@ -348,6 +355,17 @@ ol.hs li.mine { outline: 2px solid var(--ball); }
         <ol class="hs" id="overList" hidden></ol>
         <button id="againBtn" data-t="again">Revanche</button>
         <button class="ghost" id="leaveBtn" data-t="backMenu">Zurück zum Menü</button>
+      </div>
+    </div>
+
+    <!-- Verbindung unterbrochen (Phase 4) -->
+    <div class="sheet" id="netPause" hidden role="alert">
+      <div class="card">
+        <div class="big" data-t="netPaused">Verbindung unterbrochen</div>
+        <p class="small" id="netPauseText" style="text-align:center"></p>
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="note" id="netPauseHint" hidden data-t="netHint"></p>
+        <button class="ghost" id="netPauseLeave" data-t="backMenu">Zurück zum Menü</button>
       </div>
     </div>
 

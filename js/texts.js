@@ -91,7 +91,6 @@ export const T = {
   setYou: "Satz für dich", setOpp: who => `Satz ${who}`,
   won: "Gewonnen", lost: "Verloren",
   overText: (me, op, who, lv) => `Satz ${me} : ${op} gegen ${who} · ${lv}`,
-  oppGone: "Gegner ist weg · warte auf Rückkehr",
   out: "Aus!", net: "Netz!", netcord: "Netzroller!", let: "Let",
   fault: "Fehler", doubleFault: "Doppelfehler", ace: "Ass!",
   superShot: "Super-Schlag",
@@ -101,6 +100,11 @@ export const T = {
   hintOppServe: who => `${who} schlägt auf`,
   hintWait: "Warte auf Gegner",
   sideDeuce: "Einstand-Seite", sideAd: "Vorteil-Seite",
+
+  // Verbindung (Phase 4)
+  netPaused: "Verbindung unterbrochen", netWaiting: who => `Warte auf ${who} …`,
+  netHint: "Klappt es nicht? Wechselt beide ins selbe WLAN. Das Spiel geht danach mit demselben Spielstand weiter.",
+  replay: "Punkt wird wiederholt", resumed: "Weiter geht's", resume: code => `Spiel ${code} fortsetzen`,
 
   // Direktverbindung
   p2pLoadFailed: "PeerJS konnte nicht geladen werden. Bist du online?",

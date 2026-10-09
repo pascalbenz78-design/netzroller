@@ -324,6 +324,20 @@ Laufend nachgeführt. Jeder Eintrag: was entschieden wurde und warum.
 40. **Tempo-Anzeige in km/h** ist eine Umrechnung des Spieltempos (1 Platzhälfte ≈ 13 m). Ohne Obergrenze können die Zahlen unrealistisch hoch werden, das ist gewollt.
 41. **Dauer eines Durchgangs** wurde mit zwei Spielermodellen simuliert (siehe unten). Das Modell «geübter Spieler» zielt meist sicher in die Mitte, wie man es gegen eine Maschine tut.
 
+
+### Phase 4
+
+42. **Herzschlag über das Präsenz-Objekt:** Jedes Handy erhöht etwa jede Sekunde einen Zähler `hb`. Ändert er sich beim anderen Handy länger als 3 s nicht, pausiert das Spiel. Weil dabei jedes Mal das ganze Präsenz-Objekt neu geschickt wird, kommen auch verlorene Schläge oder Spielstände nach einem kurzen Aussetzer von selbst nochmals an.
+43. **Pause:** Das Spiel friert ein («Verbindung unterbrochen … warte»), nach 8 s kommt der Hinweis, ins selbe WLAN zu wechseln. Man kann jederzeit zum Menü zurück.
+44. **Weiter nach der Pause:** Der laufende Punkt wird wiederholt. Das eröffnende Handy startet dafür eine neue «Epoche» (`ep`); Schläge aus einer alten Epoche werden ignoriert, damit kein verspäteter Schlag in den neuen Punkt platzt. Das beitretende Handy bittet nur dann um eine Wiederholung (`rq`), wenn nach 1,5 s noch keine neue Epoche da ist.
+45. **Spielstand nach dem Wiederverbinden:** Das beitretende Handy übernimmt einmalig den Stand des eröffnenden, auch wenn er kleiner ist. Ein Punkt, den es während des Aussetzers vergeben hat, verfällt; der Punkt wird ja wiederholt.
+46. **Kein Hängenbleiben:** Wartet ein Handy länger als 2 s auf den Entscheid des anderen (Ball verpasst oder im Aus), fragt es nach (`ask`); das andere schickt seinen Stand nochmals. Kommt nach 6 s immer noch nichts, wird der Punkt wiederholt.
+47. **Neu verbinden (PeerJS):** Das beitretende Handy baut die Verbindung selbst neu auf, wenn es 3,5 s nichts mehr hört. Das eröffnende Handy nimmt eine neue Verbindung jederzeit an und ersetzt damit die alte. Folge: Wer den Code kennt, könnte sich während eines Spiels dazwischenschalten. Für ein Familienspiel ist das in Ordnung.
+48. **Fortsetzen nach dem Neuladen:** Das letzte Spiel zu zweit (Code, Rolle, Stand, Stufe) wird 30 Minuten lang lokal gemerkt. Unter «Zu zweit» erscheint dann «Spiel xxxx fortsetzen». Ist die Kennung des eröffnenden Handys beim Vermittlungsserver noch belegt, versucht es das Spiel bis zu sechsmal im Abstand von 2,5 s. Ein fortgesetztes Spiel überspringt das Match-Intro.
+49. **STUN und TURN:** Drei öffentliche STUN-Server (Google, Cloudflare) sind fest eingetragen. TURN-Dienste mit Gratis-Kontingent gibt es (z. B. Metered, ExpressTURN, Cloudflare), sie verlangen aber ein eigenes Konto und Zugangsdaten. Deshalb ist TURN vorbereitet, aber leer: `js/config.js`, Anleitung in der README. Ohne TURN gilt: Klappt die Verbindung nicht, ins selbe WLAN wechseln.
+50. **Auf claude.ai** verbindet der Live-Raum der Plattform selbst neu. Herzschlag, Pause, Epoche und Nachfragen funktionieren dort gleich, weil sie nur das Präsenz-Objekt nutzen.
+51. **Getestet** wurde mit zwei Browser-Tabs und einem Test-Schalter, der alle Daten eines Tabs für einige Sekunden verwirft (wie WLAN aus). Ein echter Netzwechsel am Handy ist damit nicht abgedeckt.
+
 ---
 
 ## Balance-Auswertung

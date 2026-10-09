@@ -10,7 +10,7 @@ import * as R from "./rules.js";
 import { C, clamp, other } from "./rules.js";
 import { T } from "./texts.js";
 import { createAI, aiIncoming, aiIdle, aiStep, aiWantsSuper, aiServeErr, aiServeSpot } from "./ai.js";
-import { connectRoomProvider } from "./net.js";
+import { connectRoomProvider, netTest } from "./net.js";
 import { audioInit, sfx, buzz, crowd, setSound, setVibration } from "./audio.js";
 import { say, setVoice, hasVoice } from "./voice.js";
 import { loadProfile, saveProfile, today } from "./storage.js";
@@ -48,6 +48,11 @@ let mySupers = B.supersPerRally, armed = false;
 let marks = [], flashes = [], trail = [], netShake = 0, resetTok = 0, pending = [], gameTime = 0;
 let rallyStrokes = 0, hawk = null, activeIntro = null;
 let run = null, popups = [], fireworks = [], fwTimer = 0, machineFlash = 0;   // Ballmaschine
+// Verbindung zu zweit (Phase 4): Herzschlag, Pause, Epoche für wiederholte Punkte, Nachfragen
+let paused = false, pausedAt = 0, matchStarted = false, lastHeard = 0, lastHb, hbN = 0, lastHbSent = 0, lastWatch = 0, epoch = 0;
+let syncFromHost = false, lastAsk, lastRq, lastReplayAt = 0, waitMs = 0, askedThisWait = false, currentCode = "";
+const NET = { pauseAfter: 3000, resumeWithin: 1500, askAfter: 2000, replayAfter: 6000, hintAfter: 8000, tick: 250, lastGameMinutes: 30 };
+const token = () => Math.random().toString(36).slice(2, 8);
 
 const playing = () => mode === "play" || mode === "solo" || mode === "machine";
 const isLocal = role => mode !== "play" || role === myRole;
@@ -187,7 +192,7 @@ function launch(sh, from) {
   if (sh.sup) { banner(T.superShot, true); sfx.superHit(); buzz(35); } else { sfx.hit(sh.s1); if (from === myRole) buzz(18); }
   if (from === myRole && mode === "play") {
     shotN++;
-    publish({ shot: { ...roundShot(sh), seq: score.seq, n: shotN }, toss: null });
+    publish({ shot: { ...roundShot(sh), seq: score.seq, n: shotN, ep: epoch }, toss: null });
   }
   if (mode === "solo") {
     if (from === myRole) aiIncoming(ai, sh); else aiIdle(ai, 0.5);
@@ -269,6 +274,7 @@ function applyScore(s2, mine) {
   const prev = score;
   score = s2;
   if (mine) publish({ score: s2 });
+  saveLastGame();
   pending = []; ++resetTok;
   if (hawk && !mine) hawk.then = () => {};          // Punkt kam vom anderen Handy: Wiederholung nur noch zeigen
   if (ball.phase !== "dead") ball.phase = "none";
@@ -361,7 +367,7 @@ function renderBoard() {
   let st = T.status(LV.name, GAMES);
   if (a >= 3 && b >= 3) st = LV.name + " · " + (a === b ? T.deuce : (a > b ? T.advYou : T.adv(oppName)));
   if (playing() && ["serve", "toss", "oppserve", "opptoss"].includes(ball.phase)) st += " · " + (serveNo === 2 ? T.serve2 : T.serve1);
-  if (mode === "play" && !oppHere) st = T.oppGone;
+  if (mode === "play" && paused) st = T.netPaused;
   $("status").textContent = st;
 }
 
@@ -408,15 +414,16 @@ function onPeers({ peers }) {
   if (!me) return;
   const others = players.filter(p => !p.sameTab);
   const opp = others.find(p => p.peer === oppPeer) || others.sort((a, b) => (a.peer < b.peer ? -1 : 1))[0];
-  const wasHere = oppHere;
   oppHere = !!opp;
-  if (!opp) { if (mode === "play" && wasHere) resetForPoint(); renderBoard(); return; }
+  if (!opp) { renderBoard(); return; }                 // Pause und Wiederaufnahme regelt netWatch()
 
   if (opp.peer !== oppPeer) {
-    oppPeer = opp.peer;
+    oppPeer = opp.peer; lastHb = undefined;
     const theyHost = !!opp.presence.host;
     myRole = host && !theyHost ? "A" : (!host && theyHost ? "B" : (me.peer < opp.peer ? "A" : "B"));
   }
+  // Herzschlag: jede Änderung des Zählers heisst «das andere Handy lebt»
+  if (opp.presence.hb !== lastHb) { lastHb = opp.presence.hb; lastHeard = performance.now(); }
   oppName = cleanName(opp.presence.name) || T.opponent;
   oppLand = /^[A-Z]{2}$/.test(opp.presence.land || "") ? opp.presence.land : "NR";
   if (typeof opp.presence.px === "number") oppX = clamp(1 - opp.presence.px, 0, 1);
@@ -430,17 +437,116 @@ function onPeers({ peers }) {
     score = { ...score, fs: sc0.fs }; publish({ score });
   }
   if (mode === "waiting") startMatch();
-  else if (!wasHere && mode === "play") resetForPoint();
 
   const sc = opp.presence.score;
-  if (validScore(sc) && sc.seq > score.seq) { applyScore(sc, false); publish({ score: sc }); }
+  if (validScore(sc)) {
+    if (syncFromHost && !host && opp.presence.host) {
+      // nach dem (Wieder-)Verbinden gilt der Spielstand des eröffnenden Handys, auch wenn er kleiner ist
+      syncFromHost = false;
+      if (JSON.stringify(sc) !== JSON.stringify(score)) { score = sc; publish({ score: sc }); saveLastGame(); replayPoint(); }
+    } else if (sc.seq > score.seq) { applyScore(sc, false); publish({ score: sc }); }
+  }
+
+  // Epoche: Das eröffnende Handy hat den laufenden Punkt neu gestartet
+  const ep = opp.presence.ep | 0;
+  if (ep > epoch) { epoch = ep; publish({ ep: epoch }); replayPoint(); }
+  // Bitte des beitretenden Handys, den Punkt zu wiederholen
+  const rq = opp.presence.rq;
+  if (host && rq && rq !== lastRq) { lastRq = rq; if (performance.now() - lastReplayAt > 2000) startReplay(); }
+  else if (rq) lastRq = rq;
+  // Nachfrage nach dem Spielstand: Stand nochmals schicken
+  const ask = opp.presence.ask;
+  if (ask && ask !== lastAsk) { lastAsk = ask; publish({ score: { ...score }, ans: ask }); }
 
   const sh = opp.presence.shot;
-  if (sh && typeof sh === "object" && sh.seq === score.seq && typeof sh.n === "number") {
-    const key = sh.seq + ":" + sh.n;
+  if (sh && typeof sh === "object" && sh.seq === score.seq && (sh.ep | 0) === epoch && typeof sh.n === "number" && !paused) {
+    const key = epoch + ":" + sh.seq + ":" + sh.n;
     if (!handled.has(key)) { handled.add(key); launch(cleanShot(sh), other(myRole)); }
   }
   renderBoard();
+}
+
+// ---------- Verbindungswächter (läuft in Echtzeit, auch wenn das Spiel pausiert) ----------
+function netWatch() {
+  if (mode !== "play" && mode !== "waiting") return;
+  const now = performance.now(), elapsed = Math.min(now - (lastWatch || now), 2000);
+  lastWatch = now;
+  if (now - lastHbSent >= 900) { lastHbSent = now; publish({ hb: ++hbN }); }   // Herzschlag etwa jede Sekunde
+  if (mode !== "play" || !matchStarted) return;
+  const stale = !oppHere || now - lastHeard > NET.pauseAfter;
+  if (!paused && stale) pauseGame();
+  else if (paused && oppHere && now - lastHeard < NET.resumeWithin) resumeGame();
+  if (paused) {
+    $("netPauseHint").hidden = now - pausedAt < NET.hintAfter;
+    return;
+  }
+  // Kein Hängenbleiben: Wer auf den Entscheid des anderen Handys wartet, fragt nach
+  if ((ball.phase === "gone" || ball.phase === "dead") && !hawk) {
+    waitMs += elapsed;
+    if (waitMs >= NET.askAfter && !askedThisWait) { askedThisWait = true; publish({ ask: token() }); }
+    if (waitMs >= NET.replayAfter) {
+      waitMs = 0; askedThisWait = false;
+      if (host) startReplay(); else publish({ rq: token() });
+    }
+  } else { waitMs = 0; askedThisWait = false; }
+}
+setInterval(netWatch, NET.tick);
+
+function pauseGame() {
+  paused = true; pausedAt = performance.now();
+  pending = []; ++resetTok; hawk = null; armed = false;
+  $("netPauseText").textContent = T.netWaiting(oppName);
+  $("netPauseHint").hidden = true;
+  $("netPause").hidden = false;
+  buzz(60);
+  renderBoard();
+}
+
+function resumeGame() {
+  paused = false;
+  $("netPause").hidden = true;
+  if (host) { publish({ score: { ...score } }); startReplay(); }
+  else {
+    // Nur nachfragen, wenn das eröffnende Handy nicht schon selbst einen neuen Durchgang gestartet hat
+    syncFromHost = true;
+    const e0 = epoch;
+    setTimeout(() => { if (mode === "play" && !paused && epoch === e0) publish({ rq: token() }); }, 1500);
+  }
+  renderBoard();
+}
+
+/** Das eröffnende Handy startet den laufenden Punkt neu (neue Epoche, alte Schläge zählen nicht mehr). */
+function startReplay() {
+  lastReplayAt = performance.now();
+  epoch++;
+  publish({ ep: epoch });
+  replayPoint();
+}
+
+function replayPoint() {
+  pending = []; ++resetTok; hawk = null; armed = false; trail = [];
+  ball.phase = "none";
+  announce(T.replay, null);
+  renderBoard();
+  later(0.9, resetForPoint);
+}
+
+/** Letztes Spiel zu zweit merken, damit es nach einem Neuladen mit demselben Code weitergeht. */
+function saveLastGame() {
+  if (mode !== "play" && mode !== "waiting") return;
+  try { localStorage.setItem("nr-lastgame", JSON.stringify({ code: currentCode, host, score, level, at: Date.now() })); } catch (e) {}
+}
+function loadLastGame() {
+  try {
+    const g = JSON.parse(localStorage.getItem("nr-lastgame") || "null");
+    if (g && /^[a-z0-9]{4}$/.test(g.code) && Date.now() - g.at < NET.lastGameMinutes * 60000 && validScore(g.score) && !g.score.win) return g;
+  } catch (e) {}
+  return null;
+}
+function refreshResume() {
+  const g = loadLastGame();
+  $("resumeBtn").hidden = !g || !room;
+  if (g) $("resumeBtn").textContent = T.resume(g.code);
 }
 
 function validScore(x) {
@@ -449,11 +555,14 @@ function validScore(x) {
     (x.win === null || x.win === "A" || x.win === "B") && (x.fs === undefined || x.fs === "A" || x.fs === "B");
 }
 
-async function enterRoom(code, asHost) {
+async function enterRoom(code, asHost, saved) {
   if (!room) return;
   saveName();
   host = asHost; oppPeer = null; oppHere = false; handled = new Set(); shotN = 0;
-  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B");   // Münzwurf: das eröffnende Handy entscheidet
+  currentCode = code; matchStarted = false; paused = false; epoch = 0; lastHb = undefined; lastAsk = undefined; lastRq = undefined;
+  syncFromHost = !asHost;                                      // das beitretende Handy übernimmt den Stand des eröffnenden
+  if (saved && validScore(saved.score)) { score = saved.score; if (asHost && Number.isInteger(saved.level)) setLevel(saved.level, false); }
+  else score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B");   // Münzwurf: das eröffnende Handy entscheidet
   try {
     note(T.connecting);
     game = await room.join("nr-" + code, asHost);
@@ -468,14 +577,16 @@ async function enterRoom(code, asHost) {
   shareLink = location.origin + location.pathname + "#" + code;
   showScreen("waiting");
   unsub.push(game.onPeers(onPeers, () => {}));
-  publish({ app: "nr", name: myName, land: profile.land, host: asHost, level, px: 0.5, score, shot: null });
+  publish({ app: "nr", name: myName, land: profile.land, host: asHost, level, px: 0.5, score, shot: null, hb: 0, ep: 0, ask: "", rq: "" });
+  saveLastGame();
 }
 
 function startMatch() {
-  mode = "play";
+  mode = "play"; matchStarted = true; lastHeard = performance.now();
   showScreen(null); $("quit").hidden = false;
   ball.phase = "none";
   renderBoard();
+  if (score.seq > 0) { announce(T.resumed, null); later(0.9, resetForPoint); return; }   // fortgesetztes Spiel
   beginWithIntro(T.duoEvent(LV.name));
 }
 
@@ -502,6 +613,8 @@ async function leave() {
   mode = "idle"; oppPeer = null; oppHere = false; oppName = T.opponent; myRole = "A"; ai = null;
   if (activeIntro) activeIntro.close();
   hawk = null; run = null; popups = []; fireworks = []; fwTimer = 0;
+  paused = false; matchStarted = false; $("netPause").hidden = true;
+  try { localStorage.removeItem("nr-lastgame"); } catch (e) {}
   $("quit").hidden = true; showScreen("menu"); inGame(false);
   score = R.freshScore(0); serveNo = 1; armed = false; marks = []; updateSuperBtn();
   ball.phase = "idle"; renderBoard();
@@ -554,7 +667,7 @@ $("shareBtn").onclick = async () => {
 
 connectRoomProvider().then(({ room: r, p2p }) => {
   room = r; p2pMode = p2p;
-  if (room) { $("hostBtn").disabled = false; $("joinBtn").disabled = false; note(""); }
+  if (room) { $("hostBtn").disabled = false; $("joinBtn").disabled = false; note(""); refreshResume(); }
   else note(T.needClaude);
 });
 
@@ -577,7 +690,7 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.033); last = now;
   // Testmodus: mehrere Schritte pro Bild, damit ein automatisch gespielter Satz schnell durchläuft
-  for (let k = 0; k < (test.pause ? 0 : test.speed); k++) { try { if (test.auto) autopilot(dt); step(dt); } catch (e) { console.error(e); } }
+  for (let k = 0; k < (test.pause || paused ? 0 : test.speed); k++) { try { if (test.auto) autopilot(dt); step(dt); } catch (e) { console.error(e); } }
   draw();
   requestAnimationFrame(frame);
 }
@@ -906,8 +1019,9 @@ function autopilot(dt) {
   px = clamp(px + clamp(target - px, -m, m), a, b);
 }
 /** Spielt sec Sekunden Spielzeit sofort durch (ohne Bildschirm), mit Autopilot. */
-function runFor(sec, dt = 1 / 60) { for (let t = 0; t < sec; t += dt) { if (test.auto) autopilot(dt); step(dt); } }
-window.__netzroller = { test, runFor, get state() { return { mode, phase: ball.phase, score, serveNo, myRole, px, oppX, shot: ball.shot, hawk: hawk && { isIn: hawk.isIn, t: hawk.t }, run: run && { lives: run.lives, points: run.points, combo: run.combo, returns: run.returns, speed: run.speed, over: run.over } }; } };
+function runFor(sec, dt = 1 / 60) { for (let t = 0; t < sec; t += dt) { if (paused) return; if (test.auto) autopilot(dt); step(dt); } }
+test.drop = sec => { netTest.dropUntil = performance.now() + sec * 1000; };   // WLAN kurz aus (nur Direktverbindung)
+window.__netzroller = { test, runFor, get state() { return { paused, epoch, mode, phase: ball.phase, score, serveNo, myRole, px, oppX, shot: ball.shot, hawk: hawk && { isIn: hawk.isIn, t: hawk.t }, run: run && { lives: run.lives, points: run.points, combo: run.combo, returns: run.returns, speed: run.speed, over: run.over } }; } };
 
 // ---------- Ballmaschine ----------
 function startMachine() {
@@ -1031,6 +1145,9 @@ function drawPopups() {
 }
 
 $("machineBtn").onclick = startMachine;
+$("netPauseLeave").onclick = leave;
+$("duoBtn").addEventListener("click", refreshResume);
+$("resumeBtn").onclick = () => { const g = loadLastGame(); if (g) { audioInit(); goFullscreen(); enterRoom(g.code, g.host, g); } };
 
 // ---------- Einstellungen, Intro, Menü ----------
 function applySettings(p) {

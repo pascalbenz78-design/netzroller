@@ -23,6 +23,8 @@ Vor jedem Match stellt ein kurzes Intro beide Spieler mit Flagge vor, eine Münz
 2. Handy 1 tippt auf **Spiel eröffnen** und bekommt einen vierstelligen Code. Mit **Link teilen** kannst du den Link mit dem Code direkt verschicken.
 3. Handy 2 gibt den Code ein und tippt auf **Los**.
 
+**Wenn die Verbindung kurz weg ist:** Das Spiel pausiert mit «Verbindung unterbrochen … warte» und läuft weiter, sobald beide wieder verbunden sind. Der laufende Punkt wird wiederholt, der Spielstand bleibt. Lädt ein Handy die Seite neu, steht unter **Zu zweit** für 30 Minuten der Knopf **Spiel … fortsetzen**.
+
 Am besten seid ihr im selben WLAN. Über das Mobilfunknetz klappt die Verbindung meistens auch, aber nicht in jedem Netz (siehe unten).
 
 ## Steuerung
@@ -101,6 +103,16 @@ Oben steht eine Ballmaschine statt eines Gegners. Jeder Ball, den du zurückspie
 - Läuft die Seite als Artifact auf claude.ai, nutzt sie dort stattdessen den Live-Raum von claude.ai.
 - Profil und Einstellungen merkt sich der Browser lokal (`localStorage`). Es gibt kein Konto und kein Tracking.
 - Intro, Töne, Publikum, Flaggen und Stimme werden im Browser erzeugt (Canvas, Web Audio, Web Speech). Es werden keine Bilder, Videos oder Tondateien geladen.
+
+## Verbindung in schwierigen Netzen (optional)
+
+Die Handys finden sich über sogenannte STUN-Server; das reicht in fast jedem WLAN. In manchen Netzen (Firmen-WLAN, einige Mobilfunkanbieter) braucht es zusätzlich einen **TURN-Server**, der die Spieldaten weiterleitet. Wenn ihr dort spielen wollt:
+
+1. Bei einem Anbieter mit Gratis-Kontingent ein Konto eröffnen, zum Beispiel [Metered](https://www.metered.ca/stun-turn), [ExpressTURN](https://expressturn.com/) oder Cloudflare Realtime. Die Bedingungen ändern sich; prüft sie auf der Seite des Anbieters.
+2. Dort einen TURN-Zugang erstellen. Ihr bekommt eine Adresse (beginnt mit `turn:`), einen Benutzernamen und ein Passwort.
+3. Diese drei Angaben in [`js/config.js`](js/config.js) unter `TURN` eintragen (das Beispiel steht in der Datei) und auf GitHub hochladen.
+
+Wichtig: Die Datei ist öffentlich. Verwendet nur einen Zugang, der ausschliesslich für TURN gilt und beim Anbieter ein Datenlimit hat. Ein Satz Netzroller braucht nur sehr wenig Daten.
 
 ## Lokal starten
 

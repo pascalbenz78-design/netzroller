@@ -33,7 +33,8 @@ Tennisspiel für den Browser (Draufsicht), zwei Handys gegeneinander oder allein
 | `js/storage.js` | Profil, Einstellungen, Export/Import-Code |
 | `js/flags.js` | gezeichnete Flaggen und Länderliste |
 | `js/voice.js` | Schiedsrichter-Stimme (Web Speech API) |
-| `js/net.js` | Verbindung: Live-Raum von claude.ai oder PeerJS |
+| `js/net.js` | Verbindung: Live-Raum von claude.ai oder PeerJS, Neuverbinden |
+| `js/config.js` | STUN-Server und optionaler TURN-Server |
 | `js/audio.js` | Töne, Publikum (Web Audio) und Vibration |
 | `js/texts.js` | alle Texte |
 | `tools/simulate.mjs` | Balance-Simulation Computer gegen Computer |
@@ -61,6 +62,8 @@ __netzroller.state;                // mode, phase, score, serveNo, hawk, run (Ba
 document.getElementById("machineBtn").click();   // Ballmaschine (der Autopilot spielt auch hier)
 ```
 
+Verbindungsausfall simulieren (nur Direktverbindung): `__netzroller.test.drop(6)` verwirft 6 s lang alle Daten dieses Tabs. Für zwei Tabs mit getrenntem Speicher (z. B. «Spiel fortsetzen» nach dem Neuladen) einen Tab über `localhost`, den anderen über `127.0.0.1` öffnen.
+
 Für zwei Spieler: zwei Tabs, einer eröffnet, einer tritt mit dem Code bei, in beiden den Autopiloten einschalten und mit `setInterval(() => __netzroller.runFor(0.1), 30)` antreiben. Am Ende müssen beide denselben Spielstand haben.
 
 **Veröffentlichen:** `git push` auf `main`; GitHub Pages baut in etwa einer Minute. Das Artifact auf claude.ai (https://claude.ai/artifact/2tdxcXJJbr1tnNrKHUKBXS) wird mit `index.html` und den Dateien unter `js/` als Zusatzdateien veröffentlicht.
@@ -71,8 +74,8 @@ Für zwei Spieler: zwei Tabs, einer eröffnet, einer tritt mit dem Code bei, in 
 |---|---|---|
 | 1 | Tennisgefühl: Aus, Aufschlag, Netz, Netzroller, Balance, Steuerung | abgenommen |
 | 2 | Präsentation: Intro, Match-Intro, Hawk-Eye, Stimme, Publikum, Hauptmenü, Einstellungen | abgenommen |
-| 3 | Ballmaschine (Endlos-Modus, Highscore) | **fertig, wartet auf Abnahme** |
-| 4 | Stabile Verbindung (Herzschlag, Pause, Wiederverbinden) | offen |
+| 3 | Ballmaschine (Endlos-Modus, Highscore) | abgenommen |
+| 4 | Stabile Verbindung (Herzschlag, Pause, Wiederverbinden) | **fertig, wartet auf Abnahme** |
 | 5 | Karriere (Tour, Turniere, Rangliste) | offen |
 | 6 | Turnier zu zweit, Weltrangliste mit Supabase | offen |
 
@@ -111,3 +114,16 @@ Erledigt:
 - Rangliste im Menü (lokale Top 10), Highscores im Profil und im Export-Code.
 - Simulation der Durchgangsdauer: geübt ≈ 2½ min, Gelegenheit ≈ 2 min.
 - Getestet: ganzer Durchgang mit Autopilot bis «Neuer Rekord!», Highscore nach Neuladen in der Rangliste, Satz gegen den Computer und Spiel zu zweit weiterhin fehlerfrei.
+
+### Phase 4 im Detail
+
+Erledigt:
+- Herzschlag etwa jede Sekunde; nach 3 s Stille Pause mit «Verbindung unterbrochen … warte», nach 8 s Hinweis aufs WLAN.
+- Weiter nach der Pause: laufender Punkt wird wiederholt (Epoche), Stand des eröffnenden Handys gilt.
+- Nachfragen nach 2 s ohne Entscheid, Wiederholung nach 6 s.
+- PeerJS: beitretendes Handy verbindet sich selbst neu, eröffnendes Handy nimmt die neue Verbindung an.
+- «Spiel fortsetzen» nach dem Neuladen (30 Minuten), für beide Rollen.
+- STUN fest, TURN optional in `js/config.js` (Anleitung in der README).
+- Getestet: Ausfall beim beitretenden und beim eröffnenden Tab (Pause, Weiterspielen, gleicher Stand), Neuladen beider Tabs mit «Spiel fortsetzen».
+
+Nicht getestet: echter Netzwechsel am Handy (WLAN aus/an), Mobilfunk, TURN (kein Konto vorhanden).
