@@ -7,7 +7,7 @@ import { exportCode, importCode, saveProfile } from "./storage.js";
 import { hasVoice } from "./voice.js";
 
 const $ = id => document.getElementById(id);
-const SCREENS = ["menu", "duo", "settings", "ranking", "waiting", "over"];
+const SCREENS = ["menu", "duo", "settings", "ranking", "career", "bracket", "tourRank", "cabinet", "ceremony", "waiting", "over"];
 
 /** Zeigt genau eine Menü-Seite (oder keine, mit null). */
 export function showScreen(id) {

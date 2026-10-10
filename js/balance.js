@@ -109,6 +109,66 @@ export const BALANCE = {
     topCount: 10,
   },
 
+  // Beläge: Tempo (× Grundtempo), Netzroller (× Wahrscheinlichkeit), Effekt (seitliche Kurve), Farben
+  surfaces: {
+    hard:   { speed: 1.0,  netcord: 1.0, spin: 0,    court: "#2456a0", surround: "#2c6a52" },
+    clay:   { speed: 0.84, netcord: 1.0, spin: 0.02, court: "#b8582f", surround: "#8f4526" },
+    clay2:  { speed: 0.82, netcord: 1.0, spin: 0.05, court: "#b8582f", surround: "#8f4526" },   // Sand mit mehr Effekt
+    indoor: { speed: 1.12, netcord: 0.5, spin: 0,    court: "#3a3d8f", surround: "#22244f" },
+    grass:  { speed: 1.1,  netcord: 2.0, spin: 0,    court: "#4f9a46", surround: "#3b7a35" },
+  },
+
+  // Karriere: Tour mit 63 Computerspielern und dir
+  career: {
+    tournaments: [   // Namen in texts.js (tournaments), gleiche Reihenfolge
+      { cat: "250", size: 16, surface: "hard" },
+      { cat: "250", size: 16, surface: "clay" },
+      { cat: "250", size: 16, surface: "indoor" },
+      { cat: "500", size: 16, surface: "clay2" },
+      { cat: "1000", size: 32, surface: "hard", stronger: 40 },
+      { cat: "500", size: 16, surface: "grass" },
+      { cat: "GS", size: 32, surface: "grass", finalSets: 2 },
+      { cat: "final", size: 8, surface: "indoor" },
+    ],
+    // Ranglistenpunkte: W Sieger, F Final, SF Halbfinal, QF Viertelfinal, R16 Achtelfinal, R32 1. Runde
+    points: {
+      GS:     { W: 2000, F: 1200, SF: 720, QF: 360, R16: 180, R32: 10 },
+      "1000": { W: 1000, F: 600,  SF: 360, QF: 180, R16: 90,  R32: 10 },
+      "500":  { W: 500,  F: 300,  SF: 180, QF: 90,  R16: 0 },
+      "250":  { W: 250,  F: 150,  SF: 90,  QF: 45,  R16: 0 },
+      final:  { group: 200, SF: 400, F: 500 },       // pro Gruppensieg, Halbfinal gewonnen, Final gewonnen
+    },
+    // wer mitspielt: Computerspieler aus diesem Ranglistenbereich (du spielst 250 und 500 immer mit)
+    pools: { "250": [17, 64], "500": [8, 56], "1000": [1, 40], GS: [1, 40], final: [1, 8] },
+    entry: { "1000": 32, GS: 32 },                   // Mindest-Rangierung, sonst Wildcard (eine pro Saison)
+    rolling: 8,                                      // Ranglistenpunkte der letzten 8 Turniere zählen
+    roundBoost: 22,                                  // Gegner spielen pro Runde stärker (Rating-Punkte)
+    elo: 320,                                        // Hintergrund-Simulation: Rating-Unterschied für 10:1
+    ratingRange: [1150, 2000],                       // Rating → Spielstärke 0 … 1
+    // Spielstärke 0 → 1 (schwach → stark), daraus die Werte des Computergegners
+    ai: {
+      err: [0.62, 0.32], speed: [0.65, 1.25], reaction: [0.27, 0.16], angleRate: [0.12, 0.32], superRate: [0.02, 0.2],
+      servePerfect: [0.1, 0.4], fault1: [0.42, 0.28], fault2: [0.2, 0.08],
+    },
+    // Spielstile verändern die Werte (× bzw. +)
+    styles: {
+      wall:     { hw: 0.03, speed: 0.85, err: 0.75, angleRate: 0.4, superRate: 0.2, fault1: 0.8, fault2: 0.6 },
+      cannon:   { superRate: 3.0, servePerfect: 1.6, fault1: 1.35, fault2: 1.5, err: 1.12, up: 0.01 },
+      angle:    { angleRate: 2.2, err: 1.05 },
+      counter:  { up: 0.045, err: 0.95 },                                  // nimmt dein Tempo auf und spielt schneller zurück
+      allround: {},
+    },
+    format: { early: { gw: 3, sw: 1 }, late: { gw: 4, sw: 1 }, gsFinal: { gw: 3, sw: 2 } },  // ab Halbfinal «late»
+    colors: [                                        // Schlägerfarben (nur Optik) und wann sie freigeschaltet werden
+      { id: "classic", color: "#dff23c" },
+      { id: "red",     color: "#e5484d", wins: 1 },
+      { id: "blue",    color: "#4aa8ff", wins: 10 },
+      { id: "gold",    color: "#f2c94c", titles: 1 },
+      { id: "violet",  color: "#b38cff", rank: 10 },
+      { id: "white",   color: "#f4f7f2", titles: 3 },
+    ],
+  },
+
   match: { gamesToWin: 3 },
   timing: { pointPause: 0.9, faultPause: 0.8, holdMax: 1.2, aiServeDelay: [0.6, 1.0] },
 };

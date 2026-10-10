@@ -7,7 +7,7 @@ const CODE_PREFIX = "NR1.";
 export const DEFAULT_SETTINGS = { sound: true, voice: true, vibration: true, lefty: false, swipe: true, intro: true };
 
 function defaults() {
-  return { v: 1, name: "", land: "CH", level: 1, settings: { ...DEFAULT_SETTINGS }, introSeen: "", highscores: [] };
+  return { v: 1, name: "", land: "CH", level: 1, settings: { ...DEFAULT_SETTINGS }, introSeen: "", highscores: [], career: null };
 }
 
 /** Übernimmt nur bekannte Felder mit gültigen Werten. */
@@ -22,6 +22,7 @@ function sanitize(src) {
   }
   if (typeof src.introSeen === "string") p.introSeen = src.introSeen.slice(0, 10);
   if (Array.isArray(src.highscores)) p.highscores = cleanHighscores(src.highscores);
+  if (src.career && typeof src.career === "object") p.career = src.career;   // genauer geprüft in tour.validCareer
   return p;
 }
 
@@ -61,8 +62,8 @@ function toB64(str) { return btoa(unescape(encodeURIComponent(str))).replace(/\+
 function fromB64(b) { b = b.replace(/-/g, "+").replace(/_/g, "/"); while (b.length % 4) b += "="; return decodeURIComponent(escape(atob(b))); }
 
 export function exportCode(p) {
-  const { name, land, level, settings, highscores } = p;
-  return CODE_PREFIX + toB64(JSON.stringify({ v: 1, name, land, level, settings, highscores }));
+  const { name, land, level, settings, highscores, career } = p;
+  return CODE_PREFIX + toB64(JSON.stringify({ v: 1, name, land, level, settings, highscores, career }));
 }
 
 /** Liest einen Code; wirft einen Fehler, wenn er nicht passt. Gibt ein vollständiges Profil zurück. */

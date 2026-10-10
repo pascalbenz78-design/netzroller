@@ -207,6 +207,68 @@ ol.hs li.mine { outline: 2px solid var(--ball); }
 .hs-name { font: 700 17px var(--display); text-transform: uppercase; letter-spacing: .03em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hs-pts { font: 800 18px var(--display); font-variant-numeric: tabular-nums; color: var(--ball); }
 .hs-meta { grid-column: 2 / 4; font-size: 12px; color: var(--muted); }
+
+/* ---------- Phase 5: Karriere ---------- */
+.card.wide { max-width: 760px; }
+.cr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cr-head .big { text-align: left; }
+.cr-rank { font: 800 20px var(--display); color: var(--ball); text-align: right; }
+#crSeason { text-align: right; }
+.note.good { color: var(--ball); }
+.tcard { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--board-2); border-radius: 8px; }
+.tname { font: 800 24px var(--display); text-transform: uppercase; letter-spacing: .02em; line-height: 1.05; }
+i.sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; flex: none; border: 1px solid rgba(255,255,255,.3); }
+i.sw.big { width: 40px; height: 54px; border-radius: 4px; box-shadow: inset 0 0 0 3px rgba(255,255,255,.75); }
+.cr-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cr-actions button:only-child { grid-column: 1 / -1; }
+ol.plan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+ol.plan li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; font-size: 14px; }
+ol.plan li.now { background: var(--board-2); outline: 1px solid var(--ball); }
+.pl-name { flex: 1; min-width: 0; font-weight: 600; }
+.pl-res { color: var(--muted); font-size: 13px; text-align: right; }
+canvas.flag.sm { width: 21px; height: 14px; border-radius: 2px; }
+.brk { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; }
+.brk .col, .brk .grp { flex: 0 0 auto; width: 172px; display: flex; flex-direction: column; justify-content: space-around; gap: 6px; }
+.brk .grp { justify-content: flex-start; }
+.ct { font: 700 12px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: center; }
+.mb { background: var(--board-2); border-radius: 6px; padding: 2px 0; border: 1px solid transparent; }
+.mb.you { border-color: var(--ball); }
+.mb.champ { border-color: var(--ball); background: rgba(223,242,60,.12); }
+.mr { display: flex; align-items: center; gap: 6px; padding: 3px 6px; font-size: 13px; min-width: 0; }
+.mr .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mr .rk { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.mr.won .nm { font-weight: 700; color: var(--ink); }
+.mr.out .nm { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(255,255,255,.25); }
+.mr.me { background: rgba(223,242,60,.12); border-radius: 4px; }
+.br-action { display: flex; flex-direction: column; gap: 8px; }
+.next { padding: 12px; background: var(--board-2); border-radius: 8px; display: flex; flex-direction: column; gap: 4px; }
+.next .who { display: flex; align-items: center; gap: 8px; font: 800 22px var(--display); text-transform: uppercase; }
+.next .label { margin: 0; }
+ol.trank { list-style: none; margin: 0; padding: 0; max-height: 56vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; touch-action: pan-y; }
+ol.trank li { display: grid; grid-template-columns: 2.2em 2.6em auto 1fr auto 3.6em; align-items: center; gap: 6px; padding: 5px 6px; border-radius: 6px; font-size: 14px; }
+ol.trank li.me { background: rgba(223,242,60,.14); outline: 1px solid var(--ball); }
+ol.trank .rk { font: 800 16px var(--display); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+ol.trank .ar { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+ol.trank .ar.up { color: var(--ball); }
+ol.trank .ar.down { color: var(--warn); }
+ol.trank .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+ol.trank .st { font-size: 11px; color: var(--muted); }
+ol.trank .pt { font: 700 15px var(--display); text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) { ol.trank li { grid-template-columns: 2em 2.4em auto 1fr 3.4em; } ol.trank .st { display: none; } }
+.cab-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.cab-stats div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; background: var(--board-2); border-radius: 6px; text-align: center; }
+.cab-stats b { font: 800 24px var(--display); color: var(--ball); font-variant-numeric: tabular-nums; }
+.cab-stats span { font-size: 11px; color: var(--muted); }
+.cab-trophies { display: flex; flex-wrap: wrap; gap: 8px; }
+.trophy { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 104px; text-align: center; }
+.cab-colors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+button.swatch { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 64px; padding: 8px 4px; background: var(--board-2); color: var(--ink); font-size: 13px; }
+button.swatch i { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(0,0,0,.4); }
+button.swatch small { font: 400 10px var(--body); text-transform: none; letter-spacing: 0; color: var(--muted); }
+button.swatch[aria-pressed="true"] { outline: 2px solid var(--ball); }
+button.swatch:disabled { opacity: .5; }
+.cer { align-items: center; text-align: center; }
+#cerTrophy svg { display: block; }
 </style>
 </head>
 <body>
@@ -257,7 +319,7 @@ ol.hs li.mine { outline: 2px solid var(--ball); }
           <button class="mode primary" id="soloBtn"><span data-t="modeQuick">Schnelles Spiel</span><small data-t="modeQuickSub">Kurzsatz gegen den Computer</small></button>
           <button class="mode" id="duoBtn"><span data-t="modeDuo">Zu zweit</span><small data-t="modeDuoSub">Zwei Handys, ein Code</small></button>
           <button class="mode" id="machineBtn"><span data-t="modeMachine">Ballmaschine</span><small data-t="modeMachineSub">Endlos, mit Highscore</small></button>
-          <button class="mode" disabled><span data-t="modeCareer">Karriere</span><small data-t="soon">bald</small></button>
+          <button class="mode" id="careerBtn"><span data-t="modeCareer">Karriere</span><small data-t="modeCareerSub">Tour mit 63 Gegnern</small></button>
           <button class="mode" disabled><span data-t="modeDuoTour">Turnier zu zweit</span><small data-t="soon">bald</small></button>
           <button class="mode" id="rankBtn"><span data-t="modeRanking">Rangliste</span><small data-t="modeRankingSub">Deine Top 10</small></button>
         </div>
@@ -323,6 +385,75 @@ ol.hs li.mine { outline: 2px solid var(--ball); }
         </div>
         <p class="small" id="settingsMsg" hidden role="status"></p>
         <button id="settingsBack" data-t="back">Zurück</button>
+      </div>
+    </div>
+
+    <!-- Karriere: Übersicht -->
+    <div class="sheet" id="career" hidden>
+      <div class="card">
+        <div class="cr-head"><div class="big" data-t="career">Karriere</div><div><div class="label" id="crSeason"></div><div class="cr-rank" id="crRank"></div></div></div>
+        <p class="small" id="crIntro" data-t="careerIntro"></p>
+        <p class="note good" id="crNote" hidden></p>
+        <span class="label" data-t="nextTournament">Nächstes Turnier</span>
+        <div class="tcard">
+          <i class="sw big" id="crSwatch"></i>
+          <div><div class="tname" id="crTName"></div><div class="small" id="crTMeta"></div><div class="small" id="crTFormat"></div></div>
+        </div>
+        <p class="note" id="crElig" hidden></p>
+        <div class="cr-actions" id="crActions"></div>
+        <span class="label" data-t="seasonPlan">Saison</span>
+        <ol class="plan" id="crPlan"></ol>
+        <div class="row2">
+          <button class="ghost" id="crRankBtn" data-t="tourRanking">Tour-Rangliste</button>
+          <button class="ghost" id="crCabBtn" data-t="cabinet">Vitrine und Statistik</button>
+        </div>
+        <button class="ghost" id="crBack" data-t="back">Zurück</button>
+      </div>
+    </div>
+
+    <!-- Karriere: Turnierbaum -->
+    <div class="sheet" id="bracket" hidden>
+      <div class="card wide">
+        <div class="big" id="brTitle"></div>
+        <p class="small" id="brMeta" style="text-align:center"></p>
+        <div class="brk" id="brBody"></div>
+        <div class="br-action" id="brAction"></div>
+        <button class="ghost" id="bracketBack" data-t="back">Zurück</button>
+      </div>
+    </div>
+
+    <!-- Karriere: Tour-Rangliste -->
+    <div class="sheet" id="tourRank" hidden>
+      <div class="card">
+        <div class="big" data-t="tourRanking">Tour-Rangliste</div>
+        <ol class="trank" id="tourRankList"></ol>
+        <button id="tourRankBack" data-t="back">Zurück</button>
+      </div>
+    </div>
+
+    <!-- Karriere: Vitrine und Statistik -->
+    <div class="sheet" id="cabinet" hidden>
+      <div class="card">
+        <div class="big" data-t="cabinet">Vitrine und Statistik</div>
+        <div class="cab-stats" id="cabStats"></div>
+        <div class="cab-trophies" id="cabTrophies"></div>
+        <span class="label" data-t="racketColors">Schlägerfarbe</span>
+        <div class="cab-colors" id="cabColors"></div>
+        <button class="ghost" id="newCareerBtn" data-t="newCareer">Neue Karriere starten</button>
+        <p class="note" id="newCareerMsg" hidden data-t="newCareerConfirm"></p>
+        <button id="cabinetBack" data-t="back">Zurück</button>
+      </div>
+    </div>
+
+    <!-- Karriere: Siegerehrung -->
+    <div class="sheet" id="ceremony" hidden>
+      <div class="card cer">
+        <div class="label" data-t="ceremony">Siegerehrung</div>
+        <div id="cerTrophy"></div>
+        <div class="big" id="cerTitle"></div>
+        <p class="small" id="cerText"></p>
+        <p class="note good" id="cerSummary"></p>
+        <button id="ceremonyBtn" data-t="continueBtn">Weiter</button>
       </div>
     </div>
 

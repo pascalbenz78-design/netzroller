@@ -18,6 +18,8 @@ import { initUI, showScreen, currentScreen, refreshProfileUI, matchIntro } from 
 import { playIntro } from "./intro.js";
 import * as MA from "./machine.js";
 import { renderHighscores } from "./ui.js";
+import * as TO from "./tour.js";
+import { initCareerUI, showBracket, reportMatch, racketColor } from "./careerui.js";
 
 const $ = id => document.getElementById(id);
 const cv = $("cv"), ctx = cv.getContext("2d");
@@ -48,6 +50,8 @@ let mySupers = B.supersPerRally, armed = false;
 let marks = [], flashes = [], trail = [], netShake = 0, resetTok = 0, pending = [], gameTime = 0;
 let rallyStrokes = 0, hawk = null, activeIntro = null;
 let run = null, popups = [], fireworks = [], fwTimer = 0, machineFlash = 0;   // Ballmaschine
+// Karriere (Phase 5): laufendes Match, Belag, Statistik
+let careerMatch = null, careerReturn = false, matchOpts = {}, surfaceCol = null, matchStats = null, myRacketCol = null;
 // Verbindung zu zweit (Phase 4): Herzschlag, Pause, Epoche für wiederholte Punkte, Nachfragen
 let paused = false, pausedAt = 0, matchStarted = false, lastHeard = 0, lastHb, hbN = 0, lastHbSent = 0, lastWatch = 0, epoch = 0;
 let syncFromHost = false, lastAsk, lastRq, lastReplayAt = 0, waitMs = 0, askedThisWait = false, currentCode = "";
@@ -57,6 +61,7 @@ const token = () => Math.random().toString(36).slice(2, 8);
 const playing = () => mode === "play" || mode === "solo" || mode === "machine";
 const isLocal = role => mode !== "play" || role === myRole;
 const reach = () => LV.hw + C.ballR;
+const oppReach = () => (ai && ai.lv ? ai.lv.hw : LV.hw) + C.ballR;   // der Computer hat je nach Stil eine andere Schlägerbreite
 /** Verzögert in Spielzeit (läuft mit der Spielschleife, auch im Schnelltest). */
 const later = (sec, fn) => { pending.push({ at: gameTime + sec, fn, tok: resetTok }); };
 function runTimers() {
@@ -175,7 +180,7 @@ function tap() {
   } else if (ball.phase === "toss") {
     const err = clamp((ball.tossT - TOSS / 2) / (TOSS / 2), -1, 1);
     const side = R.serveSide(score);
-    const sh = R.makeServe({ x0: px, side, no: serveNo, err, sup: consumeSuper() }, LV);
+    const sh = R.makeServe({ x0: px, side, no: serveNo, err, sup: consumeSuper() }, LV, Math.random, matchOpts);
     launch(sh, myRole);
   }
 }
@@ -202,13 +207,13 @@ function launch(sh, from) {
 
 function myHit(x) {
   const off = (x - px) / reach();
-  const sh = R.makeRallyShot({ x0: x, off, pv: pVel, prevNormal: ball.shot.ns, sup: consumeSuper() }, LV);
+  const sh = R.makeRallyShot({ x0: x, off, pv: pVel, prevNormal: ball.shot.ns, sup: consumeSuper() }, LV, Math.random, matchOpts);
   launch(sh, myRole);
 }
 
 function aiHit(x) {
   const xa = 1 - x;                                  // Blick der KI
-  const sh = R.makeRallyShot({ x0: xa, off: (xa - ai.x) / reach(), pv: ai.vel, prevNormal: ball.shot.ns, sup: aiWantsSuper(ai) }, LV);
+  const sh = R.makeRallyShot({ x0: xa, off: (xa - ai.x) / oppReach(), pv: ai.vel, prevNormal: ball.shot.ns, sup: aiWantsSuper(ai) }, ai.lv, Math.random, matchOpts);
   launch(sh, "B");
 }
 
@@ -249,6 +254,7 @@ function resolveDead() {
       announce(sh.why === "net" ? T.net + " " + T.fault : T.fault, sh.why === "net" ? T.sayNet : T.sayFault);
       later(B.timing.faultPause, () => { serveNo = 2; prepareServe(); });
     } else if (sh.serve === 2) {
+      if (careerMatch && from === myRole) matchStats.doubleFaults++;
       announce(T.doubleFault, T.sayDoubleFault);
       if (isLocal(recv)) later(0.6, () => awardPoint(recv));
     } else {
@@ -272,6 +278,7 @@ function scorePoint(w) {
 
 function applyScore(s2, mine) {
   const prev = score;
+  if (careerMatch && s2.seq > prev.seq) matchStats.longestRally = Math.max(matchStats.longestRally, rallyStrokes);
   score = s2;
   if (mine) publish({ score: s2 });
   saveLastGame();
@@ -285,6 +292,11 @@ function applyScore(s2, mine) {
   if (s2.win) {
     announce(s2.win === myRole ? T.setYou : T.setOpp(oppName), T.sayMatch(nameOf(s2.win)));
     crowd.cheer(1.3);
+  } else if (s2.setWon && s2.st && prev.st && s2.st[s2.setWon] > prev.st[s2.setWon]) {
+    // Satz gewonnen, Match geht weiter
+    const w = s2.setWon;
+    announce(w === myRole ? T.setWonYou : T.setWon(oppName), T.saySet(nameOf(w)));
+    crowd.cheer(0.9);
   } else if (s2.g.A + s2.g.B > prev.g.A + prev.g.B) {
     const w = s2.g.A > prev.g.A ? "A" : "B";
     announce(w === myRole ? T.gameYou : T.gameOpp(oppName), T.sayGame(nameOf(w)));
@@ -364,7 +376,8 @@ function renderBoard() {
   $("pMe").textContent = ta; $("pOp").textContent = tb;
   $("srvMe").classList.toggle("on", R.server(score) === me);
   $("srvOp").classList.toggle("on", R.server(score) === op);
-  let st = T.status(LV.name, GAMES);
+  let st = careerMatch ? careerMatch.tName + " · " + careerMatch.round : T.status(LV.name, GAMES);
+  if ((score.sw || 1) > 1) st += " · " + T.setsLine(score.st[me], score.st[op]);
   if (a >= 3 && b >= 3) st = LV.name + " · " + (a === b ? T.deuce : (a > b ? T.advYou : T.adv(oppName)));
   if (playing() && ["serve", "toss", "oppserve", "opptoss"].includes(ball.phase)) st += " · " + (serveNo === 2 ? T.serve2 : T.serve1);
   if (mode === "play" && paused) st = T.netPaused;
@@ -378,6 +391,8 @@ function banner(t, hot) {
 }
 
 function showOver() {
+  if (careerMatch) { careerOver(); return; }
+  $("againBtn").hidden = false; $("leaveBtn").textContent = T.backMenu;
   $("overList").hidden = true; $("againBtn").textContent = T.again;
   const won = score.win === myRole;
   $("overTitle").textContent = won ? T.won : T.lost;
@@ -551,7 +566,7 @@ function refreshResume() {
 
 function validScore(x) {
   return x && typeof x.seq === "number" && x.p && x.g &&
-    ["A", "B"].every(k => Number.isInteger(x.p[k]) && Number.isInteger(x.g[k]) && x.p[k] >= 0 && x.g[k] >= 0 && x.p[k] < 50 && x.g[k] <= GAMES) &&
+    ["A", "B"].every(k => Number.isInteger(x.p[k]) && Number.isInteger(x.g[k]) && x.p[k] >= 0 && x.g[k] >= 0 && x.p[k] < 50 && x.g[k] <= (x.gw || GAMES)) &&
     (x.win === null || x.win === "A" || x.win === "B") && (x.fs === undefined || x.fs === "A" || x.fs === "B");
 }
 
@@ -606,6 +621,43 @@ function beginWithIntro(event) {
   });
 }
 
+// ---------- Karriere ----------
+/** Ein Match der Karriere: Belag, Gegner nach Rating und Stil, Format der Runde. */
+function startCareerMatch(m) {
+  audioInit(); saveName(); goFullscreen();
+  const t = TO.tournament(m.ti), sf = B.surfaces[t.surface], base = B.levels[level];
+  LV = { ...base, base: base.base * sf.speed, max: base.max * sf.speed };
+  matchOpts = { netcordChance: B.netcord.chance * sf.netcord, spin: sf.spin };
+  surfaceCol = { court: sf.court, surround: sf.surround };
+  const pl = TO.PLAYERS[m.opp];
+  mode = "solo"; myRole = "A"; oppHere = true; oppName = pl.name; oppLand = pl.land;
+  ai = createAI(TO.opponentLevel(m.opp, m.roundIndex, LV, t.stronger || 0)); oppX = 0.5;
+  careerMatch = { ...m, tName: T.tournaments[m.ti] };
+  matchStats = { aces: 0, doubleFaults: 0, longestRally: 0 };
+  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B", TO.formatFor(profile.career, m.key === "G" ? "QF" : m.key));
+  marks = []; pending = []; ++resetTok;
+  showScreen(null); $("quit").hidden = false; inGame(true);
+  ball.phase = "none"; renderBoard();
+  beginWithIntro(careerMatch.tName + " · " + m.round);
+}
+
+function careerOver() {
+  const won = score.win === myRole;
+  const fresh = reportMatch(won, matchStats);
+  if (won) crowd.cheer(1); else crowd.applause(0.4);
+  $("overList").hidden = true; $("againBtn").hidden = true;
+  $("overTitle").textContent = won ? T.matchWon : T.matchLost;
+  $("overText").textContent = (won ? T.matchWonText : T.matchLostText)(careerMatch.round, oppName) + (fresh.length ? " · " + T.newColor(fresh.join(", ")) : "");
+  $("leaveBtn").textContent = T.continueBtn;
+  careerReturn = true;
+  showScreen("over");
+}
+
+function celebrate() {
+  crowd.cheer(1.4); say(T.ceremony);
+  if (!reducedMotion.matches) fwTimer = 2.6;
+}
+
 async function leave() {
   unsub.forEach(u => { try { u(); } catch (e) {} }); unsub = [];
   if (game) { try { await game.leave(); } catch (e) {} game = null; }
@@ -613,6 +665,7 @@ async function leave() {
   mode = "idle"; oppPeer = null; oppHere = false; oppName = T.opponent; myRole = "A"; ai = null;
   if (activeIntro) activeIntro.close();
   hawk = null; run = null; popups = []; fireworks = []; fwTimer = 0;
+  careerMatch = null; matchStats = null; matchOpts = {}; surfaceCol = null; LV = B.levels[level];
   paused = false; matchStarted = false; $("netPause").hidden = true;
   try { localStorage.removeItem("nr-lastgame"); } catch (e) {}
   $("quit").hidden = true; showScreen("menu"); inGame(false);
@@ -640,10 +693,15 @@ $("joinBtn").onclick = () => {
 };
 $("codeIn").addEventListener("keydown", e => { if (e.key === "Enter") $("joinBtn").click(); });
 $("cancelBtn").onclick = leave;
-$("leaveBtn").onclick = leave;
+$("leaveBtn").onclick = async () => {
+  const back = careerReturn;
+  careerReturn = false;
+  await leave();
+  if (back) showBracket();
+};
 $("quit").onclick = () => {
   if (mode === "machine") { if (run && !run.over) { pending = []; ++resetTok; endRun(); } else leave(); return; }
-  if (mode === "solo" && (score.win || !score.seq)) { leave(); return; }
+  if (mode === "solo" && !careerMatch && (score.win || !score.seq)) { leave(); return; }
   if (playing() && !score.win) { const s2 = { ...JSON.parse(JSON.stringify(score)), seq: score.seq + 1, win: other(myRole) }; applyScore(s2, true); }
 };
 $("againBtn").onclick = () => (mode === "machine" ? startMachine() : applyScore(R.freshScore(score.seq + 1, other(score.fs || "A")), true));
@@ -738,7 +796,7 @@ function step(dt) {
     case "opptoss":
       ball.tossT += dt;
       if (ball.tossT >= (TOSS / 2) * (1 + aiErr)) {
-        const sh = R.makeServe({ x0: ai.x, side: R.serveSide(score), no: serveNo, err: aiErr, sup: false }, LV);
+        const sh = R.makeServe({ x0: ai.x, side: R.serveSide(score), no: serveNo, err: aiErr, sup: false }, ai.lv, Math.random, matchOpts);
         launch(sh, "B");
       }
       return;
@@ -781,8 +839,12 @@ function stepFlight(dt) {
   } else if (mode === "machine") {
     if (d > MISS_D) ball.phase = "gone";
   } else if (mode === "solo") {
-    if (d >= line && prevD <= 2 + 0.06 && Math.abs(p.x - oppX) <= reach()) { aiHit(p.x); return; }
-    if (d > MISS_D) { ball.phase = "gone"; const s0 = sh, f0 = ball.from; later(0.2, () => withHawk(s0, f0, true, () => scorePoint(myRole))); }
+    if (d >= line && prevD <= 2 + 0.06 && Math.abs(p.x - oppX) <= oppReach()) { aiHit(p.x); return; }
+    if (d > MISS_D) {
+      ball.phase = "gone";
+      if (careerMatch && sh.serve && rallyStrokes === 1) matchStats.aces++;
+      const s0 = sh, f0 = ball.from; later(0.2, () => withHawk(s0, f0, true, () => scorePoint(myRole)));
+    }
   } else {
     // Gegner auf dem anderen Handy: am Schläger kurz halten, bis sein Rückschlag eintrifft
     if (!ball.held && d >= line && d <= 2 + 0.06 && Math.abs(p.x - oppX) <= reach()) { ball.held = true; ball.hold = B.timing.holdMax; }
@@ -793,7 +855,7 @@ function stepFlight(dt) {
 // ---------- Zeichnen (Einheit: Platzbreite, Ursprung: Netz am linken Rand) ----------
 function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = css("--surround"); ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = surfaceCol ? surfaceCol.surround : css("--surround"); ctx.fillRect(0, 0, W, H);
   ctx.setTransform(s * dpr, 0, 0, s * dpr, ox * dpr, (H / 2) * dpr);
 
   const bl = C.baseline * D, sl = C.serviceLine * D, white = css("--line");
@@ -836,7 +898,7 @@ function draw() {
   // Schläger: Gegner oben (Griff nach oben), du unten
   const showOpp = mode === "solo" || (mode === "play" && oppHere);
   if (mode === "machine") { drawTargets(); drawMachine(); }
-  else if (showOpp) drawRacket(oppX, -D, -1, false);
+  else if (showOpp) drawRacket(oppX, -D, -1, false, ai && ai.lv ? ai.lv.hw : LV.hw);
   drawRacket(px, D, 1, armed);
 
   drawBall(showOpp);
@@ -870,7 +932,7 @@ function draw() {
 /** Platzfläche mit Gassen und allen Linien (ohne Netz), in Platzeinheiten. */
 function drawCourtSurface() {
   const bl = C.baseline * D, sl = C.serviceLine * D, lw = 0.008;
-  ctx.fillStyle = css("--court"); ctx.fillRect(C.doublesL, -bl, C.doublesR - C.doublesL, bl * 2);
+  ctx.fillStyle = surfaceCol ? surfaceCol.court : css("--court"); ctx.fillRect(C.doublesL, -bl, C.doublesR - C.doublesL, bl * 2);
   // Doppelgassen sind Aus: dunkler
   ctx.fillStyle = "rgba(0,0,0,.16)";
   ctx.fillRect(C.doublesL, -bl, C.singlesL - C.doublesL, bl * 2);
@@ -896,7 +958,7 @@ function drawHawk() {
   const P = Math.min(W - 32, H * 0.55), wx = (W - P) / 2, wy = (H - P) / 2, k = P / 0.24;
   ctx.save();
   ctx.beginPath(); ctx.rect(wx, wy, P, P); ctx.clip();
-  ctx.fillStyle = css("--surround"); ctx.fillRect(wx, wy, P, P);
+  ctx.fillStyle = surfaceCol ? surfaceCol.surround : css("--surround"); ctx.fillRect(wx, wy, P, P);
   ctx.setTransform(k * dpr, 0, 0, k * dpr, (wx + P / 2 - gx * k) * dpr, (wy + P / 2 - gy * k) * dpr);
   drawCourtSurface();
   const u = h.t / h.dur, R0 = C.ballR;
@@ -973,8 +1035,8 @@ function drawBall(showOpp) {
 }
 
 // dir: +1 = eigener Schläger (Griff nach unten), -1 = Gegner (Griff nach oben); y = Trefferkante
-function drawRacket(x, y, dir, glow) {
-  const hw = LV.hw, hh = 0.05, cy = y + dir * hh * 0.6;
+function drawRacket(x, y, dir, glow, hw = LV.hw) {
+  const hh = 0.05, cy = y + dir * hh * 0.6;
   ctx.fillStyle = "#1a1a1a";
   if (dir > 0) roundRect(x - 0.016, cy + hh * 0.85, 0.032, 0.085, 0.01); else roundRect(x - 0.016, cy - hh * 0.85 - 0.085, 0.032, 0.085, 0.01);
   ctx.fill();
@@ -991,7 +1053,7 @@ function drawRacket(x, y, dir, glow) {
   ctx.restore();
   ctx.beginPath(); ctx.ellipse(x, cy, hw, hh, 0, 0, Math.PI * 2);
   ctx.strokeStyle = "#111"; ctx.lineWidth = 0.014; ctx.stroke();
-  ctx.strokeStyle = glow ? css("--super") : (dir > 0 ? css("--ball") : css("--line")); ctx.lineWidth = glow ? 0.009 : 0.005; ctx.stroke();
+  ctx.strokeStyle = glow ? css("--super") : (dir > 0 ? (myRacketCol || css("--ball")) : css("--line")); ctx.lineWidth = glow ? 0.009 : 0.005; ctx.stroke();
 }
 
 // ---------- Hilfen ----------
@@ -1163,6 +1225,11 @@ function runIntro() {
     .then(() => { profile.introSeen = today(); saveProfile(profile); showScreen(/^[a-z0-9]{4}$/.test(hashCode) ? "duo" : "menu"); });
 }
 initUI({ profile, onChange: applySettings, onIntro: runIntro });
+myRacketCol = racketColor(profile);
+initCareerUI({
+  profile, save: () => saveProfile(profile), onPlay: startCareerMatch, onCelebrate: celebrate,
+  userName: () => myName || T.you, onRacket: () => { myRacketCol = racketColor(profile); },
+});
 applySettings(profile);
 
 resize(); setLevel(level, false); renderBoard();

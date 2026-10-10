@@ -1,6 +1,7 @@
 // Balance-Simulation, ohne Browser.
 //   node tools/simulate.mjs [Punkte pro Stufe] [Startwert]     Computer gegen Computer
 //   node tools/simulate.mjs machine [Durchgänge] [Startwert]  Ballmaschine: wie lange dauert ein Durchgang?
+//   node tools/simulate.mjs tour [Karrieren] [Startwert]      Karriere: wie schnell steigt man auf?
 // Gibt pro Stufe aus: Länge der Ballwechsel, wie Punkte enden (Aus, Netz, Doppelfehler, Gewinnschlag),
 // dazu Netzroller und Let. Richtwerte für Mittel: 5–8 Schläge, 10–20 % Aus, 3–8 % Doppelfehler.
 
@@ -8,9 +9,10 @@ import { BALANCE as B } from "../js/balance.js";
 import * as R from "../js/rules.js";
 import { createAI, aiIncoming, aiStep, aiWantsSuper, aiServeErr, aiServeSpot, aiIdle } from "../js/ai.js";
 import * as MA from "../js/machine.js";
+import * as TO from "../js/tour.js";
 
-const MACHINE = process.argv[2] === "machine";
-const args = MACHINE ? process.argv.slice(3) : process.argv.slice(2);
+const MACHINE = process.argv[2] === "machine", TOUR = process.argv[2] === "tour";
+const args = MACHINE || TOUR ? process.argv.slice(3) : process.argv.slice(2);
 const N = +args[0] || (MACHINE ? 300 : 500);
 let seed = +args[1] || 12345;
 const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };   // reproduzierbar
@@ -62,6 +64,7 @@ function rally(sh, hitter, ai, lv, st) {
 
 const pct = (a, n) => (100 * a / n).toFixed(1) + " %";
 if (MACHINE) { simMachine(); process.exit(0); }
+if (TOUR) { simTour(); process.exit(0); }
 const rows = [];
 for (const lv of B.levels) {
   const st = { end: { out: 0, net: 0, df: 0, winner: 0, ace: 0 }, rallies: [], netcord: 0, let: 0, fault1: 0, supers: 0, frames: 0, minTime: Infinity };
@@ -119,5 +122,47 @@ function simMachine() {
     const med = [...res].sort((a, b) => a.t - b.t)[Math.floor(res.length / 2)].t;
     const mmss = x => `${Math.floor(x / 60)}:${String(Math.round(x % 60)).padStart(2, "0")}`;
     console.log(`| ${pl.name} | ${mmss(avg("t"))} | ${mmss(med)} | ${Math.round(avg("points"))} | ${avg("returns").toFixed(0)} | ${avg("combo").toFixed(0)} | ${Math.round(avg("kmh"))} km/h |`);
+  }
+}
+
+// ---------- Karriere ----------
+// Spielermodell: du gewinnst ein Match mit einer Wahrscheinlichkeit nach Elo gegen das Rating des Gegners
+// (inklusive Rundenbonus). Drei Spielstärken als Rating.
+function simTour() {
+  const K = B.career, seasons = 2;
+  console.log(`Karriere: ${N} Karrieren pro Spielstärke, ${seasons} Saisons, du spielst jedes mögliche Turnier (Wildcard wenn nötig)
+`);
+  { const c = TO.newCareer(rand), rk = TO.ranking(c); console.log(`Punkte nach der Vorsaison: Rang 1 ${rk[0].points}, Rang 8 ${rk[7].points}, Rang 32 ${rk[31].points}, Rang 40 ${rk[39].points}
+`); }
+  console.log("| Spielstärke (Rating) | Rang nach 4 Turnieren | nach Saison 1 | nach Saison 2 | Titel pro Saison | 1000/GS ohne Wildcard ab Saison 2 | im Saisonfinale |");
+  console.log("|---|---|---|---|---|---|---|");
+  for (const R0 of [1450, 1600, 1750]) {
+    const acc = { r4: [], r8: [], r16: [], titles: 0, eligible: 0, eligibleN: 0, finals: 0 };
+    for (let n = 0; n < N; n++) {
+      const c = TO.newCareer(rand);
+      for (let t = 0; t < K.tournaments.length * seasons; t++) {
+        const el = TO.eligibility(c, c.ti);
+        if (c.season === 2 && (TO.tournament(c.ti).cat === "1000" || TO.tournament(c.ti).cat === "GS")) { acc.eligibleN++; if (el.ok) acc.eligible++; }
+        let play = el.ok;
+        if (!el.ok && el.wildcard) { c.wildcardUsed = true; play = true; }
+        if (TO.tournament(c.ti).cat === "final" && play) acc.finals++;
+        TO.startTournament(c, c.ti, play, rand);
+        let m;
+        while ((m = TO.userNextMatch(c))) {
+          const ro = TO.PLAYERS[m.opp].rating + m.roundIndex * K.roundBoost + (TO.tournament(c.ti).stronger || 0);
+          const won = rand() < 1 / (1 + Math.pow(10, (ro - R0) / K.elo));
+          TO.recordUserMatch(c, won, rand);
+        }
+        TO.simulateRest(c, rand);
+        const sum = TO.closeTournament(c, true);
+        if (sum.userWon) acc.titles++;
+        const rank = TO.ranks(c)[TO.USER];
+        if (t === 3) acc.r4.push(rank);
+        if (t === 7) acc.r8.push(rank);
+        if (t === 15) acc.r16.push(rank);
+      }
+    }
+    const med = a => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
+    console.log(`| ${R0} | ${med(acc.r4)} | ${med(acc.r8)} | ${med(acc.r16)} | ${(acc.titles / N / seasons).toFixed(1)} | ${pct(acc.eligible, acc.eligibleN)} | ${(acc.finals / N / seasons * 100).toFixed(0)} % der Saisons |`);
   }
 }

@@ -27,6 +27,8 @@ Tennisspiel für den Browser (Draufsicht), zwei Handys gegeneinander oder allein
 | `js/rules.js` | Regeln: Schlag-Datensatz, Flugbahn, Aus/Netz/Let, Aufschlag, Zählweise |
 | `js/ai.js` | Computergegner (gleiche Schnittstelle wie ein Mensch) |
 | `js/machine.js` | Ballmaschine: Leben, Kombo, Zielscheiben, Tempo, Highscore |
+| `js/tour.js` | Karriere: Spieler, Turniere, Raster, Simulation, Rangliste, Belohnungen |
+| `js/careerui.js` | Karriere-Bildschirme: Übersicht, Turnierbaum, Rangliste, Vitrine, Siegerehrung |
 | `js/main.js` | Spielablauf, Eingabe, Zeichnen, Hawk-Eye, Spiel zu zweit |
 | `js/ui.js` | Hauptmenü, Zu zweit, Einstellungen, Match-Intro mit Münzwurf |
 | `js/intro.js` | Stadion-Intro (Canvas und Web Audio) |
@@ -46,6 +48,7 @@ Tennisspiel für den Browser (Draufsicht), zwei Handys gegeneinander oder allein
 node tools/serve.mjs 8080          # lokal starten: http://localhost:8080 (Module brauchen http://)
 node tools/simulate.mjs 500        # Balance prüfen (Punkte pro Stufe, optional Startwert)
 node tools/simulate.mjs machine 300  # Ballmaschine: Dauer eines Durchgangs
+node tools/simulate.mjs tour 200     # Karriere: Aufstieg in der Rangliste
 ```
 
 **Automatischer Test im Browser** (Konsole der laufenden Seite):
@@ -75,8 +78,8 @@ Für zwei Spieler: zwei Tabs, einer eröffnet, einer tritt mit dem Code bei, in 
 | 1 | Tennisgefühl: Aus, Aufschlag, Netz, Netzroller, Balance, Steuerung | abgenommen |
 | 2 | Präsentation: Intro, Match-Intro, Hawk-Eye, Stimme, Publikum, Hauptmenü, Einstellungen | abgenommen |
 | 3 | Ballmaschine (Endlos-Modus, Highscore) | abgenommen |
-| 4 | Stabile Verbindung (Herzschlag, Pause, Wiederverbinden) | **fertig, wartet auf Abnahme** |
-| 5 | Karriere (Tour, Turniere, Rangliste) | offen |
+| 4 | Stabile Verbindung (Herzschlag, Pause, Wiederverbinden) | abgenommen |
+| 5 | Karriere (Tour, Turniere, Rangliste) | **fertig, wartet auf Abnahme** |
 | 6 | Turnier zu zweit, Weltrangliste mit Supabase | offen |
 
 ### Phase 1 im Detail
@@ -127,3 +130,16 @@ Erledigt:
 - Getestet: Ausfall beim beitretenden und beim eröffnenden Tab (Pause, Weiterspielen, gleicher Stand), Neuladen beider Tabs mit «Spiel fortsetzen».
 
 Nicht getestet: echter Netzwechsel am Handy (WLAN aus/an), Mobilfunk, TURN (kein Konto vorhanden).
+
+### Phase 5 im Detail
+
+Erledigt:
+- Tour mit 63 Computerspielern (Name, Land, Rating, Stil), du startest auf Rang 64 nach einer simulierten Vorsaison.
+- 8 Turniere mit Kategorie, Feldgrösse und Belag (eigene Farben, Tempo, Netzroller, Effekt); Saisonfinale mit Gruppen.
+- Gesetzte im Raster, Gegner pro Runde stärker, Matchformate inklusive Grand-Slam-Final über zwei Gewinnsätze.
+- Ranglistenpunkte nach Tabelle, rollende Wertung der letzten 8 Turniere, Hintergrund-Simulation, Mindest-Rangierung oder Wildcard.
+- Bildschirme: Karriere-Übersicht mit Saisonplan, Turnierbaum, Tour-Rangliste mit Pfeilen, Vitrine mit Statistik und Schlägerfarben, Siegerehrung mit Feuerwerk.
+- Karriere im Profil gespeichert und im Export-Code.
+- Getestet: ganzes Turnier gespielt (Autopilot) bis zur Siegerehrung, Rangliste und Vitrine, Rest der Saison übersprungen, Saisonfinale als Zuschauer, Saison 2 beginnt; Aufgeben zählt als Niederlage; Schnelles Spiel, Ballmaschine und Spiel zu zweit weiterhin fehlerfrei. Simulation über zwei Saisons.
+
+Nicht getestet: eine ganze Saison von Hand gespielt; das Saisonfinale als Teilnehmer im Browser (nur in der Simulation).

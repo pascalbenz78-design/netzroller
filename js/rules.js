@@ -162,6 +162,7 @@ export function makeRallyShot(o, lv, rand = Math.random, opts = {}) {
                serve: 0, sup: !!o.sup, ns: normal, frame, res: "in" };
   sh.xn = sh.x0 + (sh.bx - sh.x0) / sh.bd;
   judge(sh);
+  if (opts.spin && sh.why !== "net") sh.cv = (rand() * 2 - 1) * opts.spin;   // Belag mit Effekt (Sand)
   return finish(sh, lv, rand, opts);
 }
 
@@ -237,20 +238,35 @@ export function makeServe(o, lv, rand = Math.random, opts = {}) {
 
 // ---------- Zählweise ----------
 export const other = r => (r === "A" ? "B" : "A");
-/** fs: wer im ersten Spiel aufschlägt (Münzwurf). */
-export function freshScore(seq = 0, fs = "A") { return { seq, p: { A: 0, B: 0 }, g: { A: 0, B: 0 }, win: null, fs }; }
+/**
+ * Spielstand. fs: wer im ersten Spiel aufschlägt (Münzwurf). Format: gw Spiele pro Satz, sw Gewinnsätze.
+ * st: gewonnene Sätze, tg: gespielte Spiele insgesamt (für den Aufschlagwechsel über Sätze hinweg).
+ */
+export function freshScore(seq = 0, fs = "A", format = {}) {
+  return { seq, p: { A: 0, B: 0 }, g: { A: 0, B: 0 }, win: null, fs, gw: format.gw || B.match.gamesToWin, sw: format.sw || 1, st: { A: 0, B: 0 }, tg: 0 };
+}
 /** Aufschläger: im ersten Spiel fs, danach abwechselnd nach jedem Spiel. */
-export function server(s) { const f = s.fs === "B" ? "B" : "A"; return (s.g.A + s.g.B) % 2 === 0 ? f : other(f); }
+export function server(s) {
+  const f = s.fs === "B" ? "B" : "A", played = s.tg ?? (s.g.A + s.g.B);
+  return played % 2 === 0 ? f : other(f);
+}
 /** Seite: gerade Punktzahl im Spiel = Einstand-Seite (rechts), ungerade = Vorteil-Seite (links). */
 export function serveSide(s) { return (s.p.A + s.p.B) % 2 === 0 ? "deuce" : "ad"; }
 
-export function addPoint(s, w, gamesToWin = B.match.gamesToWin) {
+export function addPoint(s, w, gamesToWin) {
   const n = JSON.parse(JSON.stringify(s));
+  const gw = n.gw || gamesToWin || B.match.gamesToWin, sw = n.sw || 1;
+  n.st = n.st || { A: 0, B: 0 };
   n.seq++; n.p[w]++;
   const l = other(w);
   if (n.p[w] >= 4 && n.p[w] - n.p[l] >= 2) {
-    n.g[w]++; n.p = { A: 0, B: 0 };
-    if (n.g[w] >= gamesToWin) n.win = w;
+    n.g[w]++; n.p = { A: 0, B: 0 }; n.tg = (n.tg ?? 0) + 1;
+    if (n.g[w] >= gw) {                                  // Satz gewonnen
+      n.st[w]++;
+      if (n.st[w] >= sw) n.win = w;
+      else { n.g = { A: 0, B: 0 }; n.setWon = w; }
+    }
   }
+  if (!n.win && n.setWon && (n.g.A || n.g.B || n.p.A || n.p.B)) delete n.setWon;
   return n;
 }

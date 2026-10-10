@@ -338,6 +338,25 @@ Laufend nachgeführt. Jeder Eintrag: was entschieden wurde und warum.
 50. **Auf claude.ai** verbindet der Live-Raum der Plattform selbst neu. Herzschlag, Pause, Epoche und Nachfragen funktionieren dort gleich, weil sie nur das Präsenz-Objekt nutzen.
 51. **Getestet** wurde mit zwei Browser-Tabs und einem Test-Schalter, der alle Daten eines Tabs für einige Sekunden verwirft (wie WLAN aus). Ein echter Netzwechsel am Handy ist damit nicht abgedeckt.
 
+
+### Phase 5
+
+52. **Spieler:** 63 erfundene Namen aus 32 Ländern, je mit Rating (1200 bis 1950) und Spielstil. Ein paar Namen zwinkern (Timo Lobmeier, Pablo Volea), die meisten klingen gewöhnlich. Die Namen stehen als Daten in `js/tour.js`, nicht in `texts.js`, weil sie keine Bedienungstexte sind.
+53. **Spielstärke:** Aus dem Rating wird eine Stärke 0 bis 1, daraus Zielgenauigkeit, Tempo, Reaktion, Winkel, Super-Schläge und Aufschlag des Computers (`career.ai`). Die Stile verändern diese Werte (`career.styles`): Wand mit breiterem Schläger und wenig Fehlern, Kanone mit vielen Super-Schlägen und riskantem Aufschlag, Winkelspieler mit vielen Kantenschlägen, Konterspieler mit höherem Tempozuwachs pro Schlag («nimmt dein Tempo auf»), Allrounder ohne Änderung.
+54. **Steigerung von Runde zu Runde:** Gesetzte Spieler (ein Viertel des Felds) sind so verteilt, dass sie sich erst spät treffen. Zusätzlich spielt jeder Gegner pro Runde etwas stärker (`roundBoost`, 22 Rating-Punkte), beim Masters 1000 alle Gegner um 40 Punkte stärker. Im Test sank der Fehlerwert des Computers von 0,60 in der ersten Runde auf 0,32 im Final.
+55. **Teilnehmerfelder:** Die 250er ziehen ihre Gegner aus Rang 17 bis 64, die 500er aus Rang 8 bis 56, Masters und Grand Slam aus Rang 1 bis 40. Mit den ursprünglich stärkeren Feldern gewann ein mittelstarker Spieler in der Simulation fast nie ein Turnier; das wäre für den Einstieg zu frustrierend.
+56. **Startplatz:** 250er und 500er darfst du immer spielen. Masters 1000 und Grand Slam brauchen Rang 32 oder besser, sonst die eine Wildcard pro Saison. Das Saisonfinale spielen nur die Top 8; sonst schaust du zu (Ergebnisse werden simuliert).
+57. **Vorsaison:** Beim Anlegen einer Karriere spielen die Computerspieler eine ganze Saison ohne dich. So hat die Rangliste von Anfang an eine glaubwürdige Verteilung, und du startest auf Rang 64.
+58. **Rollende Wertung:** Jeder Spieler hat eine Liste der Punkte aus den letzten 8 Turnieren (0 bei Nichtteilnahme). Nach jedem Turnier fällt das älteste Ergebnis weg. Bei Punktgleichheit entscheidet das Rating, du stehst bei Gleichstand hinten.
+59. **Hintergrund-Simulation:** Spiele ohne dich werden nach Elo entschieden (Rating-Unterschied 320 = 10:1). Die Runde wird erst weitergespielt, wenn dein Match fertig ist; die Ergebnisse stehen danach im Turnierbaum.
+60. **Saisonfinale:** zwei Vierergruppen im Zickzack nach Rang (1, 4, 5, 8 und 2, 3, 6, 7), jeder gegen jeden, die zwei Besten jeder Gruppe ins Halbfinal (über Kreuz). Bei Siegesgleichheit zählt die direkte Begegnung. Punkte: 200 pro Gruppensieg, 400 für den Halbfinalsieg, 500 für den Finalsieg (zusammen höchstens 1500).
+61. **Matchformat:** früh Kurzsatz bis 3, ab Halbfinal bis 4, Grand-Slam-Final zwei Gewinnsätze bis 3. Das Format steht im Spielstand selbst (`gw`, `sw`); gewonnene Sätze in `st`, gespielte Spiele über alle Sätze in `tg`, damit der Aufschlag auch über Satzgrenzen richtig wechselt. Ein Satzgewinn wird ausgerufen («Satz Pascal»).
+62. **Beläge** (`surfaces`): Hartplatz normal; Sand 16 % langsamer mit leichtem Effekt; Sand beim Alpen Classic 18 % langsamer mit mehr Effekt; Halle 12 % schneller, halb so viele Netzroller; Rasen 10 % schneller, doppelt so viele Netzroller. Jeder Belag hat eigene Platzfarben. «Flacher» auf Rasen ist nur über das Tempo umgesetzt, die Flughöhe ist überall gleich.
+63. **Aufgeben** in einem Karriere-Match zählt als Niederlage.
+64. **Statistik:** Siege, Niederlagen, Titel, beste Rangierung, Asse (dein Aufschlag, den der Gegner nicht erreicht), Doppelfehler und längster Ballwechsel (Schläge inklusive Aufschlag).
+65. **Schlägerfarben** (nur Optik): Klassik, Rot ab dem ersten Sieg, Blau ab 10 Siegen, Gold ab dem ersten Titel, Violett ab Rang 10, Weiss ab 3 Titeln. Neue Farben werden nach dem Match oder nach dem Turnier gemeldet und in der Vitrine gewählt. Die Farbe gilt in allen Modi.
+66. **Speicherung:** Die Karriere steht im Profil und reist mit dem Export-Code mit (der Code wird dadurch deutlich länger). Ein laufendes Turnier bleibt gespeichert; man kann jederzeit zurück ins Menü und später weitermachen.
+
 ---
 
 ## Balance-Auswertung
@@ -371,5 +390,19 @@ Erzeugt mit `node tools/simulate.mjs machine 300`. Der Computergegner spielt als
 | geübter Spieler | 2:25 | 2:28 | 231 | 77 | 53 | 309 km/h |
 
 **Bewertung:** Ein geübter Spieler kommt im Mittel auf knapp 2½ Minuten pro Durchgang, ein Gelegenheitsspieler auf gut 2 Minuten. Der Richtwert «2 bis 5 Minuten» ist erfüllt. Stellschrauben: `machine.growth` (Tempozuwachs pro Rückschlag), `machine.lives`, `machine.afterError`.
+
+### Karriere
+
+Erzeugt mit `node tools/simulate.mjs tour 200`. Dein Matchgewinn wird nach Elo gegen das Rating des Gegners (mit Rundenbonus) ausgewürfelt; drei Spielstärken als Rating.
+
+Punkte nach der Vorsaison: Rang 1 3010, Rang 8 730, Rang 32 110, Rang 40 10
+
+| Spielstärke (Rating) | Rang nach 4 Turnieren | nach Saison 1 | nach Saison 2 | Titel pro Saison | 1000/GS ohne Wildcard ab Saison 2 | im Saisonfinale |
+|---|---|---|---|---|---|---|
+| 1450 | 34 | 25 | 24 | 0.0 | 77.0 % | 1 % der Saisons |
+| 1600 | 25 | 13 | 13 | 0.2 | 98.0 % | 14 % der Saisons |
+| 1750 | 15 | 7 | 6 | 0.8 | 100.0 % | 68 % der Saisons |
+
+**Bewertung:** Wer mittelstark spielt (Rating 1600), steht nach einer Saison um Rang 13 und gewinnt etwa alle fünf Saisons ein Turnier; Starke (1750) kommen in die Top 8, spielen meist das Saisonfinale und holen fast jede Saison einen Titel. Die Rangliste bewegt sich damit nachvollziehbar. Masters und Grand Slam erreicht man ab der zweiten Saison meist ohne Wildcard. Wie stark ein Mensch im Vergleich zum Rating spielt, zeigt erst der Test am Handy; Stellschrauben: `career.ai`, `career.pools`, `career.roundBoost`.
 
 **Hinweis:** Die Simulation misst den Computer gegen sich selbst. Wie sich ein Satz für einen Menschen anfühlt, entscheidet der Test am Handy. Die wichtigsten Stellschrauben dafür: `levels[].ai.err` (Treffsicherheit des Computers), `zones` (Risiko der Schlägerkante), `serve.first/second` (Zeitfenster beim Aufschlag).

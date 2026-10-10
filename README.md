@@ -13,7 +13,8 @@ Beim ersten Start am Tag läuft ein kurzes Intro im Stadion (antippen übersprin
 - **Einstellungen:** Name und Land (für die Flagge), Ton, Schiedsrichter-Stimme, Vibration, Linkshänder (Super-Knopf links), Super-Schlag per Wischen, Intro beim Start. Mit **Profil mitnehmen** bekommst du einen Code, den du auf einem anderen Gerät wieder einfügst.
 - **Ballmaschine:** Endlos-Modus mit Highscore (siehe unten).
 - **Rangliste:** deine Top 10 gegen die Ballmaschine auf diesem Gerät.
-- Karriere und Turnier zu zweit kommen später dazu.
+- **Karriere:** Turniere gegen den Computer und eine Tour-Rangliste (siehe unten).
+- Turnier zu zweit kommt später dazu.
 
 Vor jedem Match stellt ein kurzes Intro beide Spieler mit Flagge vor, eine Münze entscheidet, wer zuerst aufschlägt.
 
@@ -92,6 +93,27 @@ Oben steht eine Ballmaschine statt eines Gegners. Jeder Ball, den du zurückspie
 - **Zielscheiben:** Triffst du eine, gibt es 5 Bonuspunkte, mit einem Super-Schlag 10 (jeweils mal Multiplikator). Die Scheiben wandern weiter und werden mit der Zeit kleiner.
 - Pro Leben hast du 2 Super-Schläge.
 - Am Ende siehst du deine Top 10. Bei einem neuen Rekord gibt es ein Feuerwerk.
+
+## Karriere
+
+Du trittst gegen 63 erfundene Spielerinnen und Spieler an und startest auf **Rang 64**. Jede Saison hat 8 Turniere:
+
+| Turnier | Kategorie | Feld | Belag |
+|---|---|---|---|
+| Aargau Open | 250 | 16 | Hartplatz |
+| Reuss Cup | 250 | 16 | Sand (langsamer) |
+| Seetal Indoor | 250 | 16 | Halle (schnell, wenig Netzroller) |
+| Alpen Classic | 500 | 16 | Sand (langsamer, mehr Effekt) |
+| Rhein Masters | 1000 | 32 | Hartplatz, stärkere Gegner |
+| Limmat Trophy | 500 | 16 | Rasen (schnell, mehr Netzroller) |
+| Grand Slam Netzroller | Grand Slam | 32 | Rasen, Final über zwei Gewinnsätze |
+| Saisonfinale | Finale | 8 | Halle, nur die Top 8 |
+
+- Die Gegner spielen verschieden: die **Wand** macht kaum Fehler, die **Kanone** schlägt hart auf und zündet viele Super-Schläge, der **Winkelspieler** zielt an die Linien, der **Konterspieler** spielt dein Tempo schneller zurück, der **Allrounder** ist ausgeglichen. Von Runde zu Runde werden die Gegner stärker.
+- Frühe Runden sind ein Kurzsatz bis 3, ab dem Halbfinal bis 4.
+- Je weiter du kommst, desto mehr Ranglistenpunkte gibt es (beim Grand Slam bis 2000). Es zählen die Punkte der **letzten 8 Turniere**; die Computerspieler spielen im Hintergrund weiter.
+- Für Masters und Grand Slam brauchst du Rang 32 oder besser, sonst die eine **Wildcard** pro Saison.
+- Jeder Turniersieg kommt mit Siegerehrung in die **Vitrine**. Dort stehen auch deine Statistik und neue **Schlägerfarben**, die du dir mit Siegen, Titeln und einer guten Rangierung verdienst.
 
 ## Technik
 
