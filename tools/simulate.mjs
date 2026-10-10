@@ -129,40 +129,37 @@ function simMachine() {
 // Spielermodell: du gewinnst ein Match mit einer Wahrscheinlichkeit nach Elo gegen das Rating des Gegners
 // (inklusive Rundenbonus). Drei Spielstärken als Rating.
 function simTour() {
-  const K = B.career, seasons = 2;
-  console.log(`Karriere: ${N} Karrieren pro Spielstärke, ${seasons} Saisons, du spielst jedes mögliche Turnier (Wildcard wenn nötig)
+  // Karriere in Stufen: Wie viele Turniere braucht es bis zur Schweiz, nach Europa, auf die Welt-Tour?
+  // Dein Matchgewinn wird nach Elo gegen das Rating des Gegners ausgewürfelt (drei Spielstärken).
+  const K = B.career, MAX = 80;
+  console.log(`Karriere in Stufen: ${N} Karrieren pro Spielstärke, höchstens ${MAX} Turniere, Aufstieg sobald möglich
 `);
-  { const c = TO.newCareer(rand), rk = TO.ranking(c); console.log(`Punkte nach der Vorsaison: Rang 1 ${rk[0].points}, Rang 8 ${rk[7].points}, Rang 32 ${rk[31].points}, Rang 40 ${rk[39].points}
-`); }
-  console.log("| Spielstärke (Rating) | Rang nach 4 Turnieren | nach Saison 1 | nach Saison 2 | Titel pro Saison | 1000/GS ohne Wildcard ab Saison 2 | im Saisonfinale |");
+  console.log("| Spielstärke (Rating) | Turniere bis Schweiz | bis Europa | bis Welt | Welt erreicht | Titel gesamt Ø | Rang auf der Welt-Tour nach 8 Turnieren |");
   console.log("|---|---|---|---|---|---|---|");
-  for (const R0 of [1450, 1600, 1750]) {
-    const acc = { r4: [], r8: [], r16: [], titles: 0, eligible: 0, eligibleN: 0, finals: 0 };
+  for (const R0 of [1250, 1450, 1650, 1850]) {
+    const reach = { CH: [], EU: [], WORLD: [] }, worldRank = []; let titles = 0;
     for (let n = 0; n < N; n++) {
-      const c = TO.newCareer(rand);
-      for (let t = 0; t < K.tournaments.length * seasons; t++) {
+      const c = TO.newCareer(rand, "AG");
+      let worldT = 0;
+      for (let t = 0; t < MAX; t++) {
         const el = TO.eligibility(c, c.ti);
-        if (c.season === 2 && (TO.tournament(c.ti).cat === "1000" || TO.tournament(c.ti).cat === "GS")) { acc.eligibleN++; if (el.ok) acc.eligible++; }
         let play = el.ok;
         if (!el.ok && el.wildcard) { c.wildcardUsed = true; play = true; }
-        if (TO.tournament(c.ti).cat === "final" && play) acc.finals++;
         TO.startTournament(c, c.ti, play, rand);
         let m;
         while ((m = TO.userNextMatch(c))) {
-          const ro = TO.PLAYERS[m.opp].rating + m.roundIndex * K.roundBoost + (TO.tournament(c.ti).stronger || 0);
-          const won = rand() < 1 / (1 + Math.pow(10, (ro - R0) / K.elo));
-          TO.recordUserMatch(c, won, rand);
+          if (m.opp === null) { TO.recordUserMatch(c, true, rand); continue; }
+          const ro = TO.player(c, m.opp).rating + m.roundIndex * K.roundBoost + (TO.tournament(c, c.ti).stronger || 0);
+          TO.recordUserMatch(c, rand() < TO.winProbRating(R0, ro), rand);
         }
         TO.simulateRest(c, rand);
         const sum = TO.closeTournament(c, true);
-        if (sum.userWon) acc.titles++;
-        const rank = TO.ranks(c)[TO.USER];
-        if (t === 3) acc.r4.push(rank);
-        if (t === 7) acc.r8.push(rank);
-        if (t === 15) acc.r16.push(rank);
+        if (sum.userWon) titles++;
+        if (c.tier === "WORLD" && ++worldT === 8) worldRank.push(TO.ranks(c)[TO.me(c)]);
+        if (sum.canPromote) { TO.promote(c, rand); reach[c.tier].push(t + 1); }
       }
     }
-    const med = a => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
-    console.log(`| ${R0} | ${med(acc.r4)} | ${med(acc.r8)} | ${med(acc.r16)} | ${(acc.titles / N / seasons).toFixed(1)} | ${pct(acc.eligible, acc.eligibleN)} | ${(acc.finals / N / seasons * 100).toFixed(0)} % der Saisons |`);
+    const med = a => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : "–");
+    console.log(`| ${R0} | ${med(reach.CH)} | ${med(reach.EU)} | ${med(reach.WORLD)} | ${pct(reach.WORLD.length, N)} | ${(titles / N).toFixed(1)} | ${med(worldRank)} |`);
   }
 }

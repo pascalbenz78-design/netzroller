@@ -33,11 +33,13 @@ create index if not exists scores_player on public.scores (player_id, created_at
 
 create table if not exists public.career (
   player_id       uuid primary key references public.players (id) on delete cascade,
+  tier            text not null default 'AG' check (tier in ('AG', 'CH', 'EU', 'WORLD')),
   ranking_points  integer not null check (ranking_points between 0 and 100000),
   titles          integer not null check (titles between 0 and 10000),
-  best_rank       integer not null check (best_rank between 1 and 64),
+  tier_rank       integer not null check (tier_rank between 1 and 64),
   updated_at      timestamptz not null default now()
 );
+
 
 -- ---------- Zugriffsregeln ----------
 alter table public.players enable row level security;
@@ -87,36 +89,40 @@ begin
   insert into scores (player_id, points, speed) values (p_id, p_points, p_speed);
 end $$;
 
-/** Stand der Karriere eintragen (ersetzt den alten). */
-create or replace function public.nr_submit_career(p_id uuid, p_key text, p_points integer, p_titles integer, p_best integer)
+/** Stand der Karriere eintragen (ersetzt den alten): Stufe, Ranglistenpunkte in der Stufe, Titel, aktueller Rang. */
+drop function if exists public.nr_submit_career(uuid, text, integer, integer, integer);
+create or replace function public.nr_submit_career(p_id uuid, p_key text, p_tier text, p_points integer, p_titles integer, p_rank integer)
 returns void language plpgsql security definer set search_path = public as $$
 begin
   if not exists (select 1 from players where id = p_id and key_hash = nr_hash(p_key)) then
     raise exception 'Schlüssel passt nicht';
   end if;
-  if p_points < 0 or p_points > 100000 or p_titles < 0 or p_titles > 10000 or p_best < 1 or p_best > 64 then
+  if p_tier not in ('AG', 'CH', 'EU', 'WORLD') or p_points < 0 or p_points > 100000 or p_titles < 0 or p_titles > 10000 or p_rank < 1 or p_rank > 64 then
     raise exception 'unplausibel';
   end if;
   if exists (select 1 from career where player_id = p_id and updated_at > now() - interval '1 minute') then
     raise exception 'höchstens ein Eintrag pro Minute';
   end if;
-  insert into career (player_id, ranking_points, titles, best_rank) values (p_id, p_points, p_titles, p_best)
+  insert into career (player_id, tier, ranking_points, titles, tier_rank) values (p_id, p_tier, p_points, p_titles, p_rank)
   on conflict (player_id) do update
-    set ranking_points = excluded.ranking_points, titles = excluded.titles, best_rank = excluded.best_rank, updated_at = now();
+    set tier = excluded.tier, ranking_points = excluded.ranking_points, titles = excluded.titles, tier_rank = excluded.tier_rank, updated_at = now();
 end $$;
 
 revoke all on function public.nr_hash(text) from public, anon, authenticated;
 grant execute on function public.nr_register(uuid, text, text, text) to anon, authenticated;
 grant execute on function public.nr_submit_score(uuid, text, integer, integer) to anon, authenticated;
-grant execute on function public.nr_submit_career(uuid, text, integer, integer, integer) to anon, authenticated;
+grant execute on function public.nr_submit_career(uuid, text, text, integer, integer, integer) to anon, authenticated;
 
 -- ---------- Ansicht für die Weltrangliste ----------
-create or replace view public.world_ranking with (security_invoker = on) as
+drop view if exists public.world_ranking;
+create view public.world_ranking with (security_invoker = on) as
 select
   p.id, p.name, p.land,
+  c.tier,
+  case c.tier when 'WORLD' then 4 when 'EU' then 3 when 'CH' then 2 when 'AG' then 1 else 0 end as tier_order,
   coalesce(c.ranking_points, 0) as ranking_points,
   coalesce(c.titles, 0)         as titles,
-  c.best_rank,
+  c.tier_rank,
   (select max(s.points) from scores s where s.player_id = p.id) as machine_best,
   (select max(s.speed)  from scores s where s.player_id = p.id) as machine_speed,
   greatest(p.updated_at, c.updated_at) as updated_at

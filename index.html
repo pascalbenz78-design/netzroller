@@ -276,6 +276,12 @@ button.swatch:disabled { opacity: .5; }
 #rankLocalBox, #rankWorldBox { display: flex; flex-direction: column; gap: 10px; }
 ol.hs.world { max-height: 50vh; overflow-y: auto; touch-action: pan-y; }
 ol.hs .hs-name canvas.flag.sm { display: inline-block; vertical-align: -2px; }
+
+/* ---------- Phase 7: Karriere in Stufen ---------- */
+.tier-line { font: 700 14px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--ball); }
+.promote { display: flex; flex-direction: column; gap: 8px; }
+.promote.ready { padding: 12px; border-radius: 8px; background: rgba(223,242,60,.12); outline: 1px solid var(--ball); }
+.promote .big-note { margin: 0; font: 800 20px var(--display); text-transform: uppercase; color: var(--ball); }
 </style>
 </head>
 <body>
@@ -401,7 +407,9 @@ ol.hs .hs-name canvas.flag.sm { display: inline-block; vertical-align: -2px; }
     <div class="sheet" id="career" hidden>
       <div class="card">
         <div class="cr-head"><div class="big" data-t="career">Karriere</div><div><div class="label" id="crSeason"></div><div class="cr-rank" id="crRank"></div></div></div>
+        <div class="tier-line" id="crTier"></div>
         <p class="small" id="crIntro" data-t="careerIntro"></p>
+        <div class="promote" id="crPromote"></div>
         <p class="note good" id="crNote" hidden></p>
         <span class="label" data-t="nextTournament">Nächstes Turnier</span>
         <div class="tcard">
@@ -444,7 +452,7 @@ ol.hs .hs-name canvas.flag.sm { display: inline-block; vertical-align: -2px; }
     <!-- Karriere: Tour-Rangliste -->
     <div class="sheet" id="tourRank" hidden>
       <div class="card">
-        <div class="big" data-t="tourRanking">Tour-Rangliste</div>
+        <div class="big" id="tourRankTitle">Tour-Rangliste</div>
         <ol class="trank" id="tourRankList"></ol>
         <button id="tourRankBack" data-t="back">Zurück</button>
       </div>

@@ -124,15 +124,39 @@ export const BALANCE = {
 
   // Karriere: Tour mit 63 Computerspielern und dir
   career: {
-    tournaments: [   // Namen in texts.js (tournaments), gleiche Reihenfolge
-      { cat: "250", size: 16, surface: "hard" },
-      { cat: "250", size: 16, surface: "clay" },
-      { cat: "250", size: 16, surface: "indoor" },
-      { cat: "500", size: 16, surface: "clay2" },
-      { cat: "1000", size: 32, surface: "hard", stronger: 40 },
-      { cat: "500", size: 16, surface: "grass" },
-      { cat: "GS", size: 32, surface: "grass", finalSets: 2 },
-      { cat: "final", size: 8, surface: "indoor" },
+    // Stufen der Karriere: Aargau → Schweiz → Europa → Welt. Spieler in tiers.js, Turniernamen in texts.js (tierTournaments).
+    // pools: wer mitspielt (Ranglistenbereich der Computerspieler), entry: Mindest-Rangierung (sonst Wildcard),
+    // promoteTop: ab diesem Rang ist der Aufstieg in die nächste Stufe möglich, frühestens nach minPlay Turnieren in der Stufe.
+    tiers: [
+      { id: "AG", promoteTop: 5, minPlay: 4,
+        tournaments: [
+          { cat: "club", size: 8, surface: "clay" }, { cat: "club", size: 8, surface: "hard" },
+          { cat: "club", size: 8, surface: "indoor" }, { cat: "region", size: 16, surface: "clay" },
+        ],
+        pools: { club: [1, 16], region: [1, 16] }, entry: {} },
+      { id: "CH", promoteTop: 5, minPlay: 6,
+        tournaments: [
+          { cat: "250", size: 16, surface: "hard" }, { cat: "250", size: 16, surface: "clay" },
+          { cat: "500", size: 16, surface: "indoor" }, { cat: "250", size: 16, surface: "grass" },
+          { cat: "500", size: 16, surface: "hard" }, { cat: "national", size: 16, surface: "clay" },
+        ],
+        pools: { "250": [9, 32], "500": [3, 30], national: [1, 20] }, entry: {} },
+      { id: "EU", promoteTop: 8, minPlay: 7,
+        tournaments: [
+          { cat: "250", size: 16, surface: "indoor" }, { cat: "250", size: 16, surface: "clay" },
+          { cat: "500", size: 16, surface: "clay2" }, { cat: "500", size: 16, surface: "hard" },
+          { cat: "1000", size: 32, surface: "hard", stronger: 25 }, { cat: "500", size: 16, surface: "grass" },
+          { cat: "final", size: 8, surface: "indoor" },
+        ],
+        pools: { "250": [13, 48], "500": [5, 44], "1000": [1, 34], final: [1, 8] }, entry: { "1000": 24 } },
+      { id: "WORLD", promoteTop: 0,
+        tournaments: [
+          { cat: "250", size: 16, surface: "hard" }, { cat: "250", size: 16, surface: "clay" },
+          { cat: "250", size: 16, surface: "indoor" }, { cat: "500", size: 16, surface: "clay2" },
+          { cat: "1000", size: 32, surface: "hard", stronger: 40 }, { cat: "500", size: 16, surface: "grass" },
+          { cat: "GS", size: 32, surface: "grass", finalSets: 2 }, { cat: "final", size: 8, surface: "indoor" },
+        ],
+        pools: { "250": [17, 64], "500": [8, 56], "1000": [1, 40], GS: [1, 40], final: [1, 8] }, entry: { "1000": 32, GS: 32 } },
     ],
     // Ranglistenpunkte: W Sieger, F Final, SF Halbfinal, QF Viertelfinal, R16 Achtelfinal, R32 1. Runde
     points: {
@@ -140,18 +164,18 @@ export const BALANCE = {
       "1000": { W: 1000, F: 600,  SF: 360, QF: 180, R16: 90,  R32: 10 },
       "500":  { W: 500,  F: 300,  SF: 180, QF: 90,  R16: 0 },
       "250":  { W: 250,  F: 150,  SF: 90,  QF: 45,  R16: 0 },
+      national: { W: 500, F: 300,  SF: 180, QF: 90,  R16: 10 },    // Schweizer Meisterschaft
+      region: { W: 150,  F: 90,   SF: 50,  QF: 25,  R16: 5 },      // Aargauer Meisterschaft
+      club:   { W: 60,   F: 36,   SF: 20,  QF: 5 },                // Clubturnier (8er-Feld)
       final:  { group: 200, SF: 400, F: 500 },       // pro Gruppensieg, Halbfinal gewonnen, Final gewonnen
     },
-    // wer mitspielt: Computerspieler aus diesem Ranglistenbereich (du spielst 250 und 500 immer mit)
-    pools: { "250": [17, 64], "500": [8, 56], "1000": [1, 40], GS: [1, 40], final: [1, 8] },
-    entry: { "1000": 32, GS: 32 },                   // Mindest-Rangierung, sonst Wildcard (eine pro Saison)
-    rolling: 8,                                      // Ranglistenpunkte der letzten 8 Turniere zählen
+    // Rangliste: Es zählen die Punkte so vieler Turniere, wie die Stufe pro Saison hat (rollend)
     roundBoost: 22,                                  // Gegner spielen pro Runde stärker (Rating-Punkte)
     elo: 320,                                        // Hintergrund-Simulation: Rating-Unterschied für 10:1
-    ratingRange: [1150, 2000],                       // Rating → Spielstärke 0 … 1
+    ratingRange: [850, 2000],                        // Rating → Spielstärke 0 … 1 (Aargau ≈ 0 … 0,3, Welt ≈ 0,65 … 1)
     // Spielstärke 0 → 1 (schwach → stark), daraus die Werte des Computergegners
     ai: {
-      err: [0.62, 0.32], speed: [0.65, 1.25], reaction: [0.27, 0.16], angleRate: [0.12, 0.32], superRate: [0.02, 0.2],
+      err: [0.70, 0.32], speed: [0.55, 1.25], reaction: [0.27, 0.16], angleRate: [0.12, 0.32], superRate: [0.02, 0.2],
       servePerfect: [0.1, 0.4], fault1: [0.42, 0.28], fault2: [0.2, 0.08],
     },
     // Spielstile verändern die Werte (× bzw. +)
@@ -162,19 +186,20 @@ export const BALANCE = {
       counter:  { up: 0.045, err: 0.95 },                                  // nimmt dein Tempo auf und spielt schneller zurück
       allround: {},
     },
-    format: { early: { gw: 3, sw: 1 }, late: { gw: 4, sw: 1 }, gsFinal: { gw: 3, sw: 2 } },  // ab Halbfinal «late»
+    format: { normal: { gw: 3, sw: 2 }, final: { gw: 3, sw: 3 } },   // zwei Gewinnsätze, im Final drei; jeder Satz bis 3 Spiele
     colors: [                                        // Schlägerfarben (nur Optik) und wann sie freigeschaltet werden
       { id: "classic", color: "#dff23c" },
       { id: "red",     color: "#e5484d", wins: 1 },
       { id: "blue",    color: "#4aa8ff", wins: 10 },
       { id: "gold",    color: "#f2c94c", titles: 1 },
-      { id: "violet",  color: "#b38cff", rank: 10 },
-      { id: "white",   color: "#f4f7f2", titles: 3 },
+      { id: "violet",  color: "#b38cff", tier: "CH" },   // Aufstieg in die Schweiz
+      { id: "white",   color: "#f4f7f2", tier: "EU" },    // Aufstieg nach Europa
+      { id: "platin",  color: "#9fe7ff", tier: "WORLD" }, // Aufstieg auf die Welt-Tour
     ],
   },
 
-  // Turnier zu zweit: Feld, Kategorie (für die Ranglistenpunkte), mögliche Beläge, Computerspieler aus diesem Ranglistenbereich
-  duoTour: { size: 16, cat: "250", surfaces: ["hard", "clay", "indoor", "grass"], pool: [17, 64] },
+  // Turnier zu zweit: Feldgrösse, Kategorie (Anzeige), mögliche Beläge
+  duoTour: { size: 16, cat: "250", surfaces: ["hard", "clay", "indoor", "grass"] },   // Gegner aus der Stufe der Karriere des eröffnenden Handys
 
   match: { gamesToWin: 3 },
   timing: { pointPause: 0.9, faultPause: 0.8, holdMax: 1.2, aiServeDelay: [0.6, 1.0] },

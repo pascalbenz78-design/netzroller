@@ -31,12 +31,12 @@ const rpc = {
     if (scores.some(s => s.player_id === p_id && Date.now() - s.at < windowMs)) throw "höchstens ein Eintrag pro Minute";
     scores.push({ player_id: p_id, points: p_points, speed: p_speed, at: Date.now() });
   },
-  nr_submit_career({ p_id, p_key, p_points, p_titles, p_best }) {
+  nr_submit_career({ p_id, p_key, p_tier, p_points, p_titles, p_rank }) {
     if (!keyOk(p_id, p_key)) throw "Schlüssel passt nicht";
-    if (!(p_points >= 0 && p_points <= 1e5 && p_titles >= 0 && p_best >= 1 && p_best <= 64)) throw "unplausibel";
+    if (!["AG", "CH", "EU", "WORLD"].includes(p_tier) || !(p_points >= 0 && p_points <= 1e5 && p_titles >= 0 && p_rank >= 1 && p_rank <= 64)) throw "unplausibel";
     const c = career.get(p_id);
     if (c && Date.now() - c.at < windowMs) throw "höchstens ein Eintrag pro Minute";
-    career.set(p_id, { ranking_points: p_points, titles: p_titles, best_rank: p_best, at: Date.now() });
+    career.set(p_id, { tier: p_tier, ranking_points: p_points, titles: p_titles, tier_rank: p_rank, at: Date.now() });
   },
 };
 
@@ -45,7 +45,8 @@ function worldRanking(q) {
     const c = career.get(p.id), mine = scores.filter(s => s.player_id === p.id);
     return {
       id: p.id, name: p.name, land: p.land,
-      ranking_points: c ? c.ranking_points : 0, titles: c ? c.titles : 0, best_rank: c ? c.best_rank : null,
+      tier: c ? c.tier : null, tier_order: c ? { WORLD: 4, EU: 3, CH: 2, AG: 1 }[c.tier] : 0,
+      ranking_points: c ? c.ranking_points : 0, titles: c ? c.titles : 0, tier_rank: c ? c.tier_rank : null,
       machine_best: mine.length ? Math.max(...mine.map(s => s.points)) : null,
       machine_speed: mine.length ? Math.max(...mine.map(s => s.speed)) : null,
     };

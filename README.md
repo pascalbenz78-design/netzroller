@@ -97,39 +97,37 @@ Oben steht eine Ballmaschine statt eines Gegners. Jeder Ball, den du zurückspie
 
 ## Karriere
 
-Du trittst gegen 63 erfundene Spielerinnen und Spieler an und startest auf **Rang 64**. Jede Saison hat 8 Turniere:
+Deine Karriere führt in vier Stufen von der Region an die Weltspitze. In jeder Stufe startest du ganz unten in der Rangliste.
 
-| Turnier | Kategorie | Feld | Belag |
+| Stufe | Gegner | Turniere pro Saison | Aufstieg |
 |---|---|---|---|
-| Aargau Open | 250 | 16 | Hartplatz |
-| Reuss Cup | 250 | 16 | Sand (langsamer) |
-| Seetal Indoor | 250 | 16 | Halle (schnell, wenig Netzroller) |
-| Alpen Classic | 500 | 16 | Sand (langsamer, mehr Effekt) |
-| Rhein Masters | 1000 | 32 | Hartplatz, stärkere Gegner |
-| Limmat Trophy | 500 | 16 | Rasen (schnell, mehr Netzroller) |
-| Grand Slam Netzroller | Grand Slam | 32 | Rasen, Final über zwei Gewinnsätze |
-| Saisonfinale | Finale | 8 | Halle, nur die Top 8 |
+| 1. Aargau | 15, gut schlagbar | Aargau Open, Reuss Cup, Seetal Indoor (je 8 Spieler), Aargauer Meisterschaft | ab Rang 5 → Schweiz |
+| 2. Schweiz | 31, stärker | Zürich Open, Ticino Clay, Basel Indoor, Bern Grass Cup, Genève Open, Schweizer Meisterschaft | ab Rang 5 → Europa |
+| 3. Europa | 47, stark | 7 Turniere inklusive Donau Masters und Europa-Finale der Top 8 | ab Rang 8 → Welt |
+| 4. Welt | 63, die Besten | 8 Turniere inklusive Grand Slam Netzroller und Weltfinale der Top 8 | – |
 
+- Aufsteigen kannst du frühestens nach einer ganzen Saison in der Stufe. Hast du die Rangierung erreicht, erscheint **Aufsteigen**; du kannst auch noch in der Stufe bleiben.
+- **Jedes Match geht über zwei Gewinnsätze, der Final über drei.** Jeder Satz ist ein Kurzsatz bis 3 Spiele.
+- Die Turniere haben verschiedene Beläge: Sand ist langsamer (beim Alpen Classic mit mehr Effekt), Halle schnell mit wenig Netzroller, Rasen schnell mit mehr Netzroller.
 - Die Gegner spielen verschieden: die **Wand** macht kaum Fehler, die **Kanone** schlägt hart auf und zündet viele Super-Schläge, der **Winkelspieler** zielt an die Linien, der **Konterspieler** spielt dein Tempo schneller zurück, der **Allrounder** ist ausgeglichen. Von Runde zu Runde werden die Gegner stärker.
-- Frühe Runden sind ein Kurzsatz bis 3, ab dem Halbfinal bis 4.
-- Je weiter du kommst, desto mehr Ranglistenpunkte gibt es (beim Grand Slam bis 2000). Es zählen die Punkte der **letzten 8 Turniere**; die Computerspieler spielen im Hintergrund weiter.
-- Für Masters und Grand Slam brauchst du Rang 32 oder besser, sonst die eine **Wildcard** pro Saison.
-- Jeder Turniersieg kommt mit Siegerehrung in die **Vitrine**. Dort stehen auch deine Statistik und neue **Schlägerfarben**, die du dir mit Siegen, Titeln und einer guten Rangierung verdienst.
+- Je weiter du in einem Turnier kommst, desto mehr Ranglistenpunkte gibt es. Es zählen die Turniere einer Saison der Stufe; die Computerspieler spielen im Hintergrund weiter.
+- Für Masters und Grand Slam brauchst du eine Mindest-Rangierung, sonst die eine **Wildcard** pro Saison. Die Finalturniere (Europa-Finale, Weltfinale) spielen nur die Top 8.
+- Jeder Turniersieg kommt mit Siegerehrung in die **Vitrine**. Dort stehen auch deine Statistik und neue **Schlägerfarben**, die du dir mit Siegen, Titeln und jedem Aufstieg verdienst.
 
 ## Turnier zu zweit
 
-Zwei Handys spielen gemeinsam ein Turnier mit 16 Spielern (Kategorie 250, Belag zufällig).
+Zwei Handys spielen gemeinsam ein Turnier mit 16 Spielern (Belag zufällig). Die Computergegner kommen aus der Karriere-Stufe des Handys, das das Turnier eröffnet. Jedes Match geht über zwei Gewinnsätze, der Final gegeneinander über drei.
 
 1. Handy 1 tippt im Menü auf **Turnier zu zweit** und dann auf **Turnier eröffnen**. Es bekommt einen Code.
 2. Handy 2 tippt auf **Zu zweit**, gibt den Code ein und tippt auf **Los**.
 3. Ihr landet in verschiedenen Hälften des Turnierbaums. In jeder Runde spielt jeder **gleichzeitig auf seinem Handy gegen seinen Computergegner**. Der Turnierbaum wartet, bis beide fertig sind, und zeigt den Spielstand des anderen live.
 4. Erreicht ihr beide den Final, tippt jeder auf **Bereit**, und ihr spielt **gegeneinander**.
 5. Wer ausscheidet, schaut weiter zu und kann den anderen **anfeuern**: Beim anderen erscheint ein Banner und das Publikum jubelt.
-6. Zum Schluss trägt **Turnier abschliessen** dein Ergebnis in deine eigene Karriere ein (Ranglistenpunkte wie bei einem 250er-Turnier). Läuft in deiner Karriere gerade ein Turnier, zählt das Turnier zu zweit nicht für die Rangliste.
+6. Zum Schluss trägt **Turnier abschliessen** dein Ergebnis in deine eigene Karriere ein; es zählt anstelle deines nächsten Karriere-Turniers. Läuft in deiner Karriere gerade ein Turnier, zählt das Turnier zu zweit nicht für die Rangliste.
 
 ## Weltrangliste
 
-Unter **Rangliste → Weltrangliste** siehst du alle Netzroller-Spieler, die mitmachen, zum Beispiel Familie und Freunde: sortiert nach **Karriere** (Ranglistenpunkte, Titel, beste Rangierung) oder nach **Ballmaschine** (bester Durchgang, Höchsttempo).
+Unter **Rangliste → Weltrangliste** siehst du alle Netzroller-Spieler, die mitmachen, zum Beispiel Familie und Freunde: sortiert nach **Karriere** (zuerst die Stufe, dann die Ranglistenpunkte darin) oder nach **Ballmaschine** (bester Durchgang, Höchsttempo).
 
 - Gezeigt werden nur dein selbst gewählter **Name** und dein **Land**. Es gibt kein Konto, keine E-Mail-Adresse und kein Tracking.
 - In den Einstellungen kannst du die Teilnahme abschalten.

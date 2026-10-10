@@ -386,7 +386,7 @@ function renderBoard() {
   $("srvOp").classList.toggle("on", R.server(score) === op);
   const mc = careerMatch || duoMatch;
   let st = mc ? mc.tName + " · " + mc.round : duoFinal ? T.duoFinalEvent : T.status(LV.name, GAMES);
-  if ((score.sw || 1) > 1) st += " · " + T.setsLine(score.st[me], score.st[op]);
+  if ((score.sw || 1) > 1) st += " · " + T.setsLineFull(score.st[me], score.st[op], score.sw);
   if (a >= 3 && b >= 3) st = LV.name + " · " + (a === b ? T.deuce : (a > b ? T.advYou : T.adv(oppName)));
   if (playing() && ["serve", "toss", "oppserve", "opptoss"].includes(ball.phase)) st += " · " + (serveNo === 2 ? T.serve2 : T.serve1);
   if (mode === "play" && paused) st = T.netPaused;
@@ -638,6 +638,17 @@ function beginWithIntro(event) {
   });
 }
 
+/** Eigene Karriere (ältere übernommen, sonst neu im Aargau). */
+function myCareer() {
+  if (TO.migrateCareer(profile.career)) saveProfile(profile);
+  if (!TO.validCareer(profile.career)) { profile.career = TO.newCareer(); saveProfile(profile); }
+  return profile.career;
+}
+/** Karriere-Stand für die Weltrangliste vormerken. */
+function queueCareerOnline(c) {
+  ON.queueCareer(profile, TO.totalPoints(c, TO.me(c)), c.stats.titles.length, TO.ranks(c)[TO.me(c)], c.tier);
+}
+
 // ---------- Turnier zu zweit ----------
 /** Beide sind verbunden: Das eröffnende Handy legt das Turnierfeld an und schickt es. */
 function startTourLobby() {
@@ -645,8 +656,8 @@ function startTourLobby() {
   duoMe = host ? "H0" : "H1"; duoOther = { name: oppName, land: oppLand };
   duoReady = false; duoClosed = false; duoNote = ""; duoLive = null;
   if (host) {
-    const ranks = TO.validCareer(profile.career) ? TO.ranks(profile.career) : TO.ranks(TO.newCareer());
-    duo = DT.createDuoTour([{ id: "H0", name: myName || T.you, land: profile.land }, { id: "H1", name: oppName, land: oppLand }], ranks);
+    // Feld aus der Stufe der eigenen Karriere: im Aargau gegen Aargauer, auf der Welt-Tour gegen die Besten
+    duo = DT.createDuoTour([{ id: "H0", name: myName || T.you, land: profile.land }, { id: "H1", name: oppName, land: oppLand }], myCareer());
     publish({ tourState: duo });
   }
   $("quit").hidden = true; inGame(true);
@@ -711,10 +722,9 @@ function startDuoMatch() {
   applySurface(duo.surface);
   const info = DT.who(duo, m.opp);
   mode = "solo"; myRole = "A"; oppHere = true; oppName = info.name; oppLand = info.land;
-  ai = createAI(TO.opponentLevel(m.opp, m.round, LV)); oppX = 0.5;
+  ai = createAI(TO.levelFor(DT.cpuPlayer(duo, m.opp), m.round, LV)); oppX = 0.5;
   duoMatch = { no: m.round, key: m.key, round: T.rounds[m.key], tName: T.duoTourName };
-  const late = m.key === "SF" || m.key === "F";
-  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B", late ? B.career.format.late : B.career.format.early);
+  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B", TO.formatFor(m.key));
   marks = []; pending = []; ++resetTok;
   publish({ live: { r: m.round, key: m.key, a: 0, b: 0, opp: info.name } });
   showScreen(null); $("quit").hidden = false;
@@ -736,7 +746,7 @@ function startDuoFinal() {
   applySurface(duo.surface);
   mode = "play"; myRole = netRole; oppName = duoOther.name; oppLand = duoOther.land; oppHere = true;
   const fs = duo.id.charCodeAt(0) % 2 ? "A" : "B";                     // auf beiden Handys gleich
-  score = R.freshScore(1000 + duo.round * 10, fs, B.career.format.late);
+  score = R.freshScore(1000 + duo.round * 10, fs, B.career.format.final);
   handled = new Set(); paused = false; matchStarted = true; lastHeard = performance.now();
   syncFromHost = false;                                   // beide starten mit demselben frischen Stand
   publish({ score });
@@ -786,12 +796,11 @@ function duoSendCheer() {
 
 /** Turnier fertig: Punkte in die eigene Karriere eintragen (wenn dort gerade kein Turnier läuft). */
 function duoCloseTour() {
-  if (!TO.validCareer(profile.career)) profile.career = TO.newCareer();
-  const pts = DT.pointsFor(duo, duoMe), won = duo.champion === duoMe;
-  const sum = TO.recordExternal(profile.career, pts, DT.resultKey(duo, duoMe), won);
+  const c = myCareer(), won = duo.champion === duoMe;
+  const sum = TO.recordExternal(c, DT.resultKey(duo, duoMe), won);
   if (sum) {
-    duoNote = T.duoRecorded(pts, sum.rankBefore, sum.rankAfter);
-    ON.queueCareer(profile, TO.totalPoints(profile.career, TO.USER), profile.career.stats.titles.length, profile.career.stats.bestRank);
+    duoNote = T.duoRecorded(sum.userPoints, sum.rankBefore, sum.rankAfter);
+    queueCareerOnline(c);
     syncOnline();
   } else duoNote = T.duoNotRecorded;
   saveProfile(profile);
@@ -804,16 +813,16 @@ function duoCloseTour() {
 /** Ein Match der Karriere: Belag, Gegner nach Rating und Stil, Format der Runde. */
 function startCareerMatch(m) {
   audioInit(); saveName(); goFullscreen();
-  const t = TO.tournament(m.ti), sf = B.surfaces[t.surface], base = B.levels[level];
+  const c = myCareer(), t = TO.tournament(c, m.ti), sf = B.surfaces[t.surface], base = B.levels[level];
   LV = { ...base, base: base.base * sf.speed, max: base.max * sf.speed };
   matchOpts = { netcordChance: B.netcord.chance * sf.netcord, spin: sf.spin };
   surfaceCol = { court: sf.court, surround: sf.surround };
-  const pl = TO.PLAYERS[m.opp];
+  const pl = TO.player(c, m.opp);
   mode = "solo"; myRole = "A"; oppHere = true; oppName = pl.name; oppLand = pl.land;
-  ai = createAI(TO.opponentLevel(m.opp, m.roundIndex, LV, t.stronger || 0)); oppX = 0.5;
-  careerMatch = { ...m, tName: T.tournaments[m.ti] };
+  ai = createAI(TO.opponentLevel(c, m.opp, m.roundIndex, LV, t.stronger || 0)); oppX = 0.5;
+  careerMatch = { ...m, tName: T.tierTournaments[c.tier][m.ti] };
   matchStats = { aces: 0, doubleFaults: 0, longestRally: 0 };
-  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B", TO.formatFor(profile.career, m.key === "G" ? "QF" : m.key));
+  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B", TO.formatFor(m.key));
   marks = []; pending = []; ++resetTok;
   showScreen(null); $("quit").hidden = false; inGame(true);
   ball.phase = "none"; renderBoard();
@@ -1434,7 +1443,7 @@ initUI({ profile, onChange: applySettings, onIntro: runIntro });
 myRacketCol = racketColor(profile);
 initCareerUI({
   profile, save: () => saveProfile(profile), onPlay: startCareerMatch, onCelebrate: celebrate,
-  onClosed: c => { ON.queueCareer(profile, TO.totalPoints(c, TO.USER), c.stats.titles.length, c.stats.bestRank); saveProfile(profile); syncOnline(); },
+  onClosed: c => { queueCareerOnline(c); saveProfile(profile); syncOnline(); },
   userName: () => myName || T.you, onRacket: () => { myRacketCol = racketColor(profile); },
 });
 applySettings(profile);

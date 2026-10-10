@@ -27,7 +27,8 @@ Tennisspiel für den Browser (Draufsicht), zwei Handys gegeneinander oder allein
 | `js/rules.js` | Regeln: Schlag-Datensatz, Flugbahn, Aus/Netz/Let, Aufschlag, Zählweise |
 | `js/ai.js` | Computergegner (gleiche Schnittstelle wie ein Mensch) |
 | `js/machine.js` | Ballmaschine: Leben, Kombo, Zielscheiben, Tempo, Highscore |
-| `js/tour.js` | Karriere: Spieler, Turniere, Raster, Simulation, Rangliste, Belohnungen |
+| `js/tour.js` | Karriere in Stufen: Turniere, Raster, Simulation, Rangliste, Aufstieg, Belohnungen |
+| `js/tiers.js` | Spieler der vier Stufen (Aargau, Schweiz, Europa, Welt) |
 | `js/careerui.js` | Karriere-Bildschirme: Übersicht, Turnierbaum, Rangliste, Vitrine, Siegerehrung |
 | `js/duotour.js` | Turnier zu zweit: Feld, Ergebnisse, Runden (bis 4 Menschen vorbereitet) |
 | `js/duoui.js` | Anzeige des Turniers zu zweit |
@@ -53,7 +54,7 @@ Tennisspiel für den Browser (Draufsicht), zwei Handys gegeneinander oder allein
 node tools/serve.mjs 8080          # lokal starten: http://localhost:8080 (Module brauchen http://)
 node tools/simulate.mjs 500        # Balance prüfen (Punkte pro Stufe, optional Startwert)
 node tools/simulate.mjs machine 300  # Ballmaschine: Dauer eines Durchgangs
-node tools/simulate.mjs tour 200     # Karriere: Aufstieg in der Rangliste
+node tools/simulate.mjs tour 300     # Karriere: Turniere bis zu jeder Stufe
 ```
 
 **Automatischer Test im Browser** (Konsole der laufenden Seite):
@@ -87,7 +88,8 @@ Für zwei Spieler: zwei Tabs, einer eröffnet, einer tritt mit dem Code bei, in 
 | 3 | Ballmaschine (Endlos-Modus, Highscore) | abgenommen |
 | 4 | Stabile Verbindung (Herzschlag, Pause, Wiederverbinden) | abgenommen |
 | 5 | Karriere (Tour, Turniere, Rangliste) | abgenommen |
-| 6 | Turnier zu zweit, Weltrangliste mit Supabase | **fertig, wartet auf Einrichtung von Supabase und Abnahme** |
+| 6 | Turnier zu zweit, Weltrangliste mit Supabase | fertig, wartet auf Einrichtung von Supabase |
+| 7 | Karriere in Stufen (Aargau → Schweiz → Europa → Welt), zwei Gewinnsätze | **fertig, wartet auf Abnahme** |
 
 ### Phase 1 im Detail
 
@@ -160,3 +162,12 @@ Erledigt:
 - Getestet: ganzes Turnier zu zweit über zwei Tabs bis zum Final gegeneinander und zum Abschluss; Weltrangliste gegen den nachgebauten Server mit zwei Geräten, Sperrfrist und Nachsenden; Erreichbarkeit mit 18 500 Aufschlägen pro Stufe; Schnelles Spiel weiterhin fehlerfrei.
 
 Offen: Supabase-Projekt einrichten (Pascal, Anleitung in der README) und danach die Weltrangliste auf zwei echten Geräten prüfen.
+
+### Phase 7 im Detail (Wunsch von Pascal nach Phase 6)
+
+Erledigt:
+- Vier Stufen mit eigenen Spielern und Turnieren, Aufstieg ab Rang 5/5/8 nach mindestens einer Saison, Freilose im Aargau.
+- Zwei Gewinnsätze pro Match, im Final drei (Karriere und Turnier zu zweit).
+- Übersicht mit Stufe, Aufstiegsziel und Aufstiegsknopf; Rangliste pro Stufe; Vitrine mit Stufe; neue Schlägerfarben für Aufstiege.
+- Alte Karrieren laufen als Stufe Welt weiter; Turnier zu zweit nutzt die Stufe des eröffnenden Handys; Weltrangliste mit Stufe.
+- Getestet: ganze Aargauer Saison mit Autopilot, Aufstieg in die Schweiz, Rangliste und Vitrine; Übernahme einer alten Karriere, Turnier zu zweit mit Aargauer Feld (Node); Weltrangliste mit Stufe gegen den Test-Server; Simulation über 80 Turniere.

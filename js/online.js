@@ -74,9 +74,9 @@ export function queueScore(profile, points, kmh) {
 }
 
 /** Karriere: aktuellen Stand zum Hochladen vormerken. */
-export function queueCareer(profile, points, titles, bestRank) {
+export function queueCareer(profile, points, titles, rank, tier) {
   ensureIdentity(profile);
-  profile.online.pendingCareer = { points, titles, bestRank: Math.max(1, Math.min(64, bestRank)) };
+  profile.online.pendingCareer = { points, titles, rank: Math.max(1, Math.min(64, rank)), tier };
 }
 
 /**
@@ -97,7 +97,7 @@ export async function sync(profile, save) {
   }
   if (o.pendingCareer) {
     const c = o.pendingCareer;
-    try { await rpc("nr_submit_career", { p_id: o.id, p_key: o.key, p_points: c.points, p_titles: c.titles, p_best: c.bestRank }); delete o.pendingCareer; res.sent++; save(); }
+    try { await rpc("nr_submit_career", { p_id: o.id, p_key: o.key, p_tier: c.tier || "WORLD", p_points: c.points, p_titles: c.titles, p_rank: c.rank ?? c.bestRank ?? 64 }); delete o.pendingCareer; res.sent++; save(); }
     catch (e) { res.failed++; }
   }
   return res;
@@ -105,7 +105,7 @@ export async function sync(profile, save) {
 
 /** Weltrangliste laden: by = "career" (Ranglistenpunkte) oder "machine" (Ballmaschine). */
 export async function loadWorld(by = "career", limit = 100) {
-  const order = by === "machine" ? "machine_best.desc.nullslast,ranking_points.desc" : "ranking_points.desc,titles.desc,machine_best.desc.nullslast";
+  const order = by === "machine" ? "machine_best.desc.nullslast,ranking_points.desc" : "tier_order.desc,ranking_points.desc,titles.desc";
   const filter = by === "machine" ? "&machine_best=not.is.null" : "";
-  return call(`/rest/v1/world_ranking?select=id,name,land,ranking_points,titles,best_rank,machine_best,machine_speed&order=${order}&limit=${limit}${filter}`);
+  return call(`/rest/v1/world_ranking?select=id,name,land,tier,tier_order,ranking_points,titles,tier_rank,machine_best,machine_speed&order=${order}&limit=${limit}${filter}`);
 }

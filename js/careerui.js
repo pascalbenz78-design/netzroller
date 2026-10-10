@@ -13,11 +13,15 @@ let ctx = null;   // { profile, save(), onPlay(match), onCelebrate(), userName()
 
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
 function flag(code) { const c = el("canvas", "flag sm"); requestAnimationFrame(() => paintFlag(c, code)); return c; }
-const nameOf = i => (i === TO.USER ? ctx.userName() : TO.PLAYERS[i].name);
-const landOf = i => (i === TO.USER ? ctx.profile.land : TO.PLAYERS[i].land);
+const nameOf = i => (i === TO.me(career()) ? ctx.userName() : TO.player(career(), i).name);
+const landOf = i => (i === TO.me(career()) ? ctx.profile.land : TO.player(career(), i).land);
+/** Name eines Turniers der Stufe. */
+const tName = (tier, ti) => T.tierTournaments[tier || "WORLD"][ti];
+const tierDefOf = tier => K.tiers.find(t => t.id === (tier || "WORLD"));
 
-/** Karriere aus dem Profil, bei Bedarf neu angelegt. */
+/** Karriere aus dem Profil, bei Bedarf übernommen (ältere Version) oder neu im Aargau angelegt. */
 function career() {
+  if (TO.migrateCareer(ctx.profile.career)) ctx.save();
   if (!TO.validCareer(ctx.profile.career)) { ctx.profile.career = TO.newCareer(); ctx.save(); }
   return ctx.profile.career;
 }
@@ -43,17 +47,19 @@ export function initCareerUI(o) {
 export function openCareer() { renderHub(); showScreen("career"); }
 
 function renderHub(note) {
-  const c = career(), rk = TO.ranks(c), rank = rk[TO.USER];
+  const c = career(), rk = TO.ranks(c), U = TO.me(c), rank = rk[U];
   $("crSeason").textContent = T.season(c.season);
-  $("crRank").textContent = T.rankLine(rank, TO.totalPoints(c, TO.USER));
+  $("crRank").textContent = T.rankLine(rank, TO.totalPoints(c, U));
+  $("crTier").textContent = T.tierLevel(TO.TIER_IDS.indexOf(c.tier) + 1, TO.TIER_IDS.length, T.tierNames[c.tier]);
+  renderPromote(c, rank);
   $("crIntro").hidden = c.history.length > 0;
   $("crNote").hidden = !note; $("crNote").textContent = note || "";
 
-  const t = TO.tournament(c.ti), sf = B.surfaces[t.surface];
-  $("crTName").textContent = T.tournaments[c.ti];
+  const t = TO.tournament(c, c.ti), sf = B.surfaces[t.surface];
+  $("crTName").textContent = tName(c.tier, c.ti);
   $("crTMeta").textContent = `${T.categories[t.cat]} · ${T.surfaceNames[t.surface]} (${T.surfaceHints[t.surface]}) · ${T.drawSize(t.size)}`;
   $("crSwatch").style.background = sf.court;
-  $("crTFormat").textContent = t.cat === "final" ? T.formatFinal : t.finalSets ? T.formatGs : T.formatEarly;
+  $("crTFormat").textContent = t.cat === "final" ? T.formatFinal : T.formatEarly;
 
   const actions = $("crActions"); actions.textContent = "";
   const btn = (label, cls, fn) => { const b = el("button", cls, label); b.onclick = fn; actions.appendChild(b); };
@@ -70,13 +76,35 @@ function renderHub(note) {
 
   // Saisonplan
   const plan = $("crPlan"); plan.textContent = "";
-  K.tournaments.forEach((tt, i) => {
+  TO.tierDef(c).tournaments.forEach((tt, i) => {
     const li = el("li", i === c.ti ? "now" : "");
     const sw = el("i", "sw"); sw.style.background = B.surfaces[tt.surface].court;
-    const h = c.history.slice().reverse().find(x => x.season === c.season && x.ti === i);
-    li.append(sw, el("span", "pl-name", T.tournaments[i]), el("span", "pl-res", h ? T.rounds[h.result] + (h.points ? ` · +${h.points}` : "") : i === c.ti ? "←" : ""));
+    const h = c.history.slice().reverse().find(x => x.season === c.season && x.ti === i && (x.tier || "WORLD") === c.tier);
+    li.append(sw, el("span", "pl-name", tName(c.tier, i)), el("span", "pl-res", h ? T.rounds[h.result] + (h.points ? ` · +${h.points}` : "") : i === c.ti ? "←" : ""));
     plan.appendChild(li);
   });
+}
+
+/** Aufstieg: Ziel anzeigen oder, wenn erreicht, den Knopf «Aufsteigen». */
+function renderPromote(c, rank) {
+  const box = $("crPromote"); box.textContent = "";
+  const next = TO.nextTier(c), def = TO.tierDef(c);
+  box.classList.toggle("ready", TO.canPromote(c));
+  if (!next) { box.appendChild(el("p", "small", T.tierTop)); return; }
+  if (TO.canPromote(c)) {
+    box.appendChild(el("p", "big-note", T.promoteReady(T.tierNames[next])));
+    const b = el("button", "", T.promoteBtn(T.tierNames[next]));
+    b.onclick = () => {
+      TO.promote(c);
+      ctx.save();
+      if (ctx.onClosed) ctx.onClosed(c);
+      renderHub(T.promoted(T.tierNames[c.tier], TO.ranks(c)[TO.me(c)]));
+    };
+    box.append(b, el("p", "small", T.promoteHint));
+  } else {
+    const left = Math.max(0, (def.minPlay || 0) - (c.tierPlayed || 0));
+    box.appendChild(el("p", "small", T.promoteGoal(def.promoteTop, T.tierNames[next]) + (left ? " " + T.promoteAfter(left) : "")));
+  }
 }
 
 function start(withUser) {
@@ -93,13 +121,14 @@ export function showBracket() { renderBracket(); showScreen("bracket"); }
 function renderBracket() {
   const c = career(), cur = c.current;
   if (!cur) { openCareer(); return; }
-  const t = TO.tournament(cur.ti), rk = TO.ranks(c);
-  $("brTitle").textContent = T.tournaments[cur.ti];
+  if (TO.skipByes(c)) ctx.save();
+  const t = TO.tournament(c, cur.ti), rk = TO.ranks(c), U = TO.me(c);
+  $("brTitle").textContent = tName(c.tier, cur.ti);
   $("brMeta").textContent = `${T.categories[t.cat]} · ${T.surfaceNames[t.surface]}`;
   const body = $("brBody"); body.textContent = "";
 
   const matchBox = (a, b, w) => {
-    const box = el("div", "mb" + (a === TO.USER || b === TO.USER ? " you" : ""));
+    const box = el("div", "mb" + (a === U || b === U ? " you" : ""));
     for (const p of [a, b]) {
       const row = el("div", "mr" + (w === p ? " won" : w !== undefined && w !== null ? " out" : ""));
       if (p === null || p === undefined) { row.append(el("span", "nm", "–")); box.appendChild(row); continue; }
@@ -113,8 +142,8 @@ function renderBracket() {
     cur.groups.forEach((g, gi) => {
       const col = el("div", "grp");
       col.appendChild(el("div", "ct", T.groupTable(gi === 0 ? "A" : "B")));
-      TO.standings(cur, g).forEach(p => {
-        const row = el("div", "mr" + (p === TO.USER ? " me" : ""));
+      TO.standings(c, cur, g).forEach(p => {
+        const row = el("div", "mr" + (p === U ? " me" : ""));
         row.append(flag(landOf(p)), el("span", "nm", nameOf(p)), el("span", "rk", T.groupWins(cur.wins[p])));
         col.appendChild(row);
       });
@@ -141,7 +170,7 @@ function renderBracket() {
     });
     if (cur.champion !== undefined && cur.champion !== null) {
       const col = el("div", "col"); col.appendChild(el("div", "ct", T.rounds.W));
-      const box = el("div", "mb champ" + (cur.champion === TO.USER ? " you" : ""));
+      const box = el("div", "mb champ" + (cur.champion === U ? " you" : ""));
       const row = el("div", "mr won"); row.append(flag(landOf(cur.champion)), el("span", "nm", nameOf(cur.champion)));
       box.appendChild(row); col.appendChild(box); body.appendChild(col);
     }
@@ -151,14 +180,14 @@ function renderBracket() {
   const act = $("brAction"); act.textContent = "";
   const m = TO.userNextMatch(c);
   if (m) {
-    const p = TO.PLAYERS[m.opp], round = m.key === "G" ? T.groupDay(m.roundIndex + 1) : T.rounds[m.key];
+    const p = TO.player(c, m.opp), round = m.key === "G" ? T.groupDay(m.roundIndex + 1) : T.rounds[m.key];
     const card = el("div", "next");
     const who = el("div", "who"); who.append(flag(p.land), el("b", "", p.name));
     card.append(el("div", "label", T.nextMatch(round, "")), who, el("div", "small", T.oppInfo(rk[m.opp], T.styles[p.style]) + " · " + T.styleHints[p.style]));
     const b = el("button", "", T.playMatch); b.onclick = () => ctx.onPlay({ ...m, ti: cur.ti, round });
     act.append(card, b);
   } else if (!cur.done) {
-    act.appendChild(el("p", "small", cur.userIn ? T.youOut(T.rounds[TO.userResultKey(cur)] || "") : T.youWatch));
+    act.appendChild(el("p", "small", cur.userIn ? T.youOut(T.rounds[TO.userResultKey(c, cur)] || "") : T.youWatch));
     const b = el("button", "", T.finishTournament); b.onclick = () => { TO.simulateRest(c); ctx.save(); renderBracket(); };
     act.appendChild(b);
   } else {
@@ -175,11 +204,12 @@ function close() {
   ctx.save();
   if (ctx.onClosed) ctx.onClosed(c);
   const fresh = TO.unlockedColors(c).filter(x => !colorsBefore.includes(x.id)).map(x => T.colorNames[x.id]);
-  const note = (s.userIn ? T.summary(s.userPoints, s.rankBefore, s.rankAfter) : "") + (fresh.length ? " · " + T.newColor(fresh.join(", ")) : "");
+  const note = (s.userIn ? T.summary(s.userPoints, s.rankBefore, s.rankAfter) : "") + (fresh.length ? " · " + T.newColor(fresh.join(", ")) : "")
+    + (s.canPromote ? " · " + T.promoteReady(T.tierNames[TO.nextTier(c)]) : "");
   if (s.userWon) {
-    $("cerTrophy").innerHTML = trophySvg(TO.tournament(s.ti).cat, 96);
-    $("cerTitle").textContent = T.tournaments[s.ti];
-    $("cerText").textContent = T.ceremonyText(T.tournaments[s.ti], s.season);
+    $("cerTrophy").innerHTML = trophySvg(tierDefOf(s.tier).tournaments[s.ti].cat, 96);
+    $("cerTitle").textContent = tName(s.tier, s.ti);
+    $("cerText").textContent = T.ceremonyText(tName(s.tier, s.ti), s.season);
     $("cerSummary").textContent = note;
     showScreen("ceremony");
     ctx.onCelebrate();
@@ -204,13 +234,14 @@ export function reportMatch(won, stats) {
 
 // ---------- Tour-Rangliste ----------
 function renderRanking() {
-  const c = career(), list = $("tourRankList"); list.textContent = "";
-  const prev = c.prevRanks || TO.ranks(c);
+  const c = career(), list = $("tourRankList"), U = TO.me(c); list.textContent = "";
+  $("tourRankTitle").textContent = T.tierRanking[c.tier];
+  const prev = c.prevRanks && c.prevRanks.length === c.results.length ? c.prevRanks : TO.ranks(c);
   TO.ranking(c).forEach(r => {
-    const li = el("li", r.idx === TO.USER ? "me" : "");
+    const li = el("li", r.idx === U ? "me" : "");
     const d = prev[r.idx] - r.rank;
     const arrow = el("span", "ar " + (d > 0 ? "up" : d < 0 ? "down" : ""), d > 0 ? T.rankUp(d) : d < 0 ? T.rankDown(-d) : T.rankSame);
-    const style = r.idx === TO.USER ? "" : T.styles[TO.PLAYERS[r.idx].style];
+    const style = r.idx === U ? "" : T.styles[TO.player(c, r.idx).style];
     li.append(el("span", "rk", String(r.rank)), arrow, flag(landOf(r.idx)), el("span", "nm", nameOf(r.idx)), el("span", "st", style), el("span", "pt", String(r.points)));
     list.appendChild(li);
   });
@@ -228,8 +259,8 @@ function renderCabinet() {
   if (!s.titles.length) tro.appendChild(el("p", "small", T.trophiesEmpty));
   s.titles.forEach(x => {
     const d = el("div", "trophy");
-    d.innerHTML = trophySvg(TO.tournament(x.ti).cat, 48);
-    d.appendChild(el("span", "small", T.trophyLine(T.tournaments[x.ti], x.season)));
+    d.innerHTML = trophySvg(tierDefOf(x.tier).tournaments[x.ti].cat, 48);
+    d.appendChild(el("span", "small", x.duo ? T.trophyLine(T.duoTourName, x.season, T.tierNames[x.tier || "WORLD"]) : T.trophyLine(tName(x.tier, x.ti), x.season, T.tierNames[x.tier || "WORLD"])));
     tro.appendChild(d);
   });
   const cols = $("cabColors"); cols.textContent = "";
@@ -240,7 +271,7 @@ function renderCabinet() {
     b.disabled = !unlocked;
     b.setAttribute("aria-pressed", String(c.racket === col.id));
     const dot = el("i"); dot.style.background = col.color;
-    const need = col.wins ? T.colorNeed.wins(col.wins) : col.titles ? T.colorNeed.titles(col.titles) : col.rank ? T.colorNeed.rank(col.rank) : "";
+    const need = col.wins ? T.colorNeed.wins(col.wins) : col.titles ? T.colorNeed.titles(col.titles) : col.tier ? T.colorNeed.tier(T.tierNames[col.tier]) : "";
     b.append(dot, el("span", "", T.colorNames[col.id]), el("small", "", unlocked ? "" : need));
     b.onclick = () => { c.racket = col.id; ctx.save(); ctx.onRacket(); renderCabinet(); };
     cols.appendChild(b);
@@ -250,7 +281,7 @@ function renderCabinet() {
 
 /** Pokal als kleine SVG-Zeichnung, Farbe nach Kategorie. */
 function trophySvg(cat, size) {
-  const col = { GS: "#f2c94c", "1000": "#cfd8dc", "500": "#d08a4a", "250": "#dff23c", final: "#b38cff" }[cat] || "#dff23c";
+  const col = { GS: "#f2c94c", "1000": "#cfd8dc", "500": "#d08a4a", "250": "#dff23c", final: "#b38cff", national: "#e5484d", region: "#4aa8ff", club: "#9fd6a0" }[cat] || "#dff23c";
   return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true">
     <path d="M18 8h28v10c0 10-6 18-14 18S18 28 18 18z" fill="${col}"/>
     <path d="M18 12H9c0 9 5 14 11 15M46 12h9c0 9-5 14-11 15" fill="none" stroke="${col}" stroke-width="4"/>

@@ -1,61 +1,87 @@
-// Karriere: Tour mit 63 erfundenen Computerspielern und dir, 8 Turniere pro Saison, rollende Rangliste.
+// Karriere in Stufen: Aargau → Schweiz → Europa → Welt. Pro Stufe ein Feld erfundener Computerspieler
+// und du, eigene Turniere pro Saison, rollende Rangliste, Aufstieg ab einer Rangierung.
 // Reine Logik ohne Darstellung: läuft im Browser und in tools/simulate.mjs (tour).
 //
-// Spieler-Index 0 … 62 = Computerspieler, 63 = du (USER).
+// Spieler-Index 0 … n-1 = Computerspieler der Stufe (tiers.js), n = du (me(c)).
 // Ein Turnier ist ein K.-o.-Raster: rounds[0] sind die Startplätze, rounds[r + 1][k] gewinnt das Spiel
-// rounds[r][2k] gegen rounds[r][2k + 1]. Das Saisonfinale hat zwei Vierergruppen, dann Halbfinal und Final.
+// rounds[r][2k] gegen rounds[r][2k + 1]. Ein «final»-Turnier hat zwei Vierergruppen, dann Halbfinal und Final.
 
 import { BALANCE as B } from "./balance.js";
+import { TIER_PLAYERS } from "./tiers.js";
 
 const K = B.career;
-export const USER = 63;
-
-// Name, Land, Stil, Rating. Erfunden; Ähnlichkeiten mit echten Spielern sind nicht beabsichtigt.
-export const PLAYERS = [
-  ["Viktor Lindqvist", "SE", "allround", 1950], ["Mateo Ibarra", "ES", "cannon", 1920], ["Felix Brandauer", "AT", "wall", 1900],
-  ["Hugo Delacroix", "FR", "angle", 1880], ["Kenji Mori", "JP", "counter", 1860], ["Liam O'Rourke", "IE", "cannon", 1840],
-  ["Davide Rinaldi", "IT", "allround", 1820], ["Jonas Achermann", "CH", "wall", 1800], ["Tomás Navarro", "AR", "angle", 1785],
-  ["Erik Solberg", "NO", "counter", 1770], ["Pieter van Dijkhuis", "NL", "cannon", 1755], ["Marek Novotný", "CZ", "allround", 1740],
-  ["Sam Whitfield", "GB", "angle", 1725], ["Lukas Reinholt", "DE", "wall", 1710], ["Bruno Carvalho", "BR", "cannon", 1695],
-  ["Aleksi Virtanen", "FI", "counter", 1680], ["Ivan Petrović", "RS", "allround", 1665], ["Jae-won Park", "KR", "angle", 1650],
-  ["Owen Mercer", "AU", "cannon", 1640], ["Mathis Lefort", "BE", "wall", 1630], ["Cole Harrington", "US", "cannon", 1620],
-  ["Andrej Kovač", "HR", "angle", 1610], ["Nikola Dimitrov", "BG", "allround", 1600], ["Kasper Holm", "DK", "counter", 1590],
-  ["Julien Moreau", "FR", "allround", 1580], ["Simon Gerber", "CH", "counter", 1570], ["Diego Restrepo", "CO", "angle", 1560],
-  ["Tobias Krenn", "AT", "allround", 1550], ["Gabriel Lindgren", "SE", "wall", 1540], ["Nathan Bouchard", "CA", "cannon", 1530],
-  ["Paweł Zieliński", "PL", "allround", 1520], ["Lorenzo Basile", "IT", "angle", 1510], ["Henrik Strand", "NO", "wall", 1500],
-  ["Rafael Montes", "ES", "counter", 1490], ["Bence Horváth", "HU", "cannon", 1480], ["Timo Lobmeier", "DE", "allround", 1470],
-  ["Arthur Penhallow", "GB", "wall", 1460], ["Yuto Hayashi", "JP", "angle", 1450], ["Mykola Bondar", "UA", "counter", 1440],
-  ["Joel Wüthrich", "CH", "cannon", 1430], ["Ruben Vermeer", "NL", "allround", 1420], ["Théo Marchand", "MC", "angle", 1410],
-  ["Ethan Calloway", "US", "counter", 1400], ["Lucas Pereira", "BR", "allround", 1390], ["Jakub Dvořák", "CZ", "wall", 1380],
-  ["Emil Lundberg", "SE", "cannon", 1370], ["Niko Laine", "FI", "allround", 1360], ["Matteo Galli", "IT", "counter", 1350],
-  ["Florian Haas", "DE", "angle", 1340], ["Ignacio Ferrer", "AR", "wall", 1330], ["Cian Gallagher", "IE", "allround", 1320],
-  ["Damir Rakić", "HR", "cannon", 1310], ["Oliver Kent", "AU", "counter", 1300], ["Mads Kjær", "DK", "angle", 1290],
-  ["Raphael Imhof", "CH", "allround", 1280], ["Tom Wagner", "LU", "wall", 1270], ["Ji-ho Shin", "KR", "cannon", 1260],
-  ["Vincent Dubois", "BE", "counter", 1250], ["Patrick Lennox", "CA", "allround", 1240], ["Gustav Ek", "SE", "angle", 1230],
-  ["Daniel Mráz", "CZ", "counter", 1220], ["Adrian Bühler", "CH", "cannon", 1210], ["Pablo Volea", "ES", "allround", 1200],
-].map(([name, land, style, rating]) => ({ name, land, style, rating }));
+export const TIER_IDS = K.tiers.map(t => t.id);
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
+// ---------- Stufe ----------
+export const tierDef = c => K.tiers.find(t => t.id === (c.tier || "WORLD"));
+export const players = c => TIER_PLAYERS[c.tier || "WORLD"];
+export const player = (c, i) => players(c)[i];
+/** Dein Index in der Stufe (nach allen Computerspielern). */
+export const me = c => players(c).length;
+export const tournament = (c, ti) => tierDef(c).tournaments[ti];
+const ratingOf = (c, idx) => (idx === me(c) ? -1 : players(c)[idx].rating);
+
+/** Nächste Stufe oder null (Welt ist die letzte). */
+export function nextTier(c) {
+  const i = TIER_IDS.indexOf(c.tier || "WORLD");
+  return i >= 0 && i < TIER_IDS.length - 1 ? TIER_IDS[i + 1] : null;
+}
+
 // ---------- Karriere anlegen ----------
-/** Neue Karriere: Die Computerspieler haben schon eine Saison hinter sich (Ranglistenpunkte), du startest auf Rang 64. */
-export function newCareer(rand = Math.random) {
+/**
+ * Neue Karriere in einer Stufe: Die Computerspieler haben schon eine Saison hinter sich, du startest ganz unten.
+ * Mit `keep` (bisherige Karriere) bleiben Statistik, Titel, Verlauf, Saison und Schlägerfarbe erhalten (Aufstieg).
+ */
+export function newCareer(rand = Math.random, tier = "AG", keep = null) {
+  const n = TIER_PLAYERS[tier].length;
   const c = {
-    v: 1, season: 1, ti: 0, wildcardUsed: false, current: null,
-    results: Array.from({ length: 64 }, () => []),   // Punkte der letzten Turniere pro Spieler
-    prevRanks: null, history: [],
-    stats: { wins: 0, losses: 0, aces: 0, doubleFaults: 0, longestRally: 0, bestRank: 64, titles: [] },
+    v: 2, tier, season: 1, ti: 0, wildcardUsed: false, current: null,
+    results: Array.from({ length: n + 1 }, () => []),
+    prevRanks: null, history: [], tiersReached: [tier], tierPlayed: 0,
+    stats: { wins: 0, losses: 0, aces: 0, doubleFaults: 0, longestRally: 0, bestRank: n + 1, titles: [] },
     racket: "classic",
   };
-  for (let t = 0; t < K.tournaments.length; t++) {    // Vorsaison ohne dich
+  for (let t = 0; t < tierDef(c).tournaments.length; t++) {    // Vorsaison ohne dich
     startTournament(c, t, false, rand);
     simulateRest(c, rand);
     closeTournament(c, false);
   }
-  c.season = 1; c.ti = 0; c.wildcardUsed = false;   // die Vorsaison zählt nicht als deine Saison
+  c.ti = 0; c.wildcardUsed = false; c.season = 1;            // die Vorsaison zählt nicht als deine Saison
+  if (keep) {
+    c.season = keep.season; c.history = keep.history; c.racket = keep.racket;
+    c.stats = { ...keep.stats, bestRank: n + 1 };
+    c.tiersReached = [...new Set([...(keep.tiersReached || []), tier])];
+  }
   c.prevRanks = ranks(c);
   return c;
+}
+
+/** Aufstieg möglich? Nur zwischen zwei Turnieren und ab der Aufstiegs-Rangierung der Stufe. */
+export function canPromote(c) {
+  const t = tierDef(c);
+  return !!nextTier(c) && !c.current && t.promoteTop > 0 && (c.tierPlayed || 0) >= (t.minPlay || 0) && ranks(c)[me(c)] <= t.promoteTop;
+}
+
+/** In die nächste Stufe aufsteigen. Gibt die neue Karriere zurück (Statistik und Titel bleiben). */
+export function promote(c, rand = Math.random) {
+  const nt = nextTier(c);
+  if (!nt) return c;
+  const fresh = newCareer(rand, nt, c);
+  Object.keys(c).forEach(k => delete c[k]);
+  Object.assign(c, fresh);
+  return c;
+}
+
+/** Ältere Karrieren (Phase 5, nur Welt-Tour) übernehmen. Gibt true zurück, wenn etwas geändert wurde. */
+export function migrateCareer(c) {
+  if (!c || typeof c !== "object" || c.v !== 1) return false;
+  c.v = 2; c.tier = "WORLD"; c.tiersReached = [...TIER_IDS];
+  (c.stats.titles || []).forEach(t => { t.tier = t.tier || "WORLD"; });
+  (c.history || []).forEach(h => { h.tier = h.tier || "WORLD"; });
+  return true;
 }
 
 // ---------- Rangliste ----------
@@ -64,30 +90,27 @@ export const totalPoints = (c, i) => c.results[i].reduce((a, b) => a + b, 0);
 /** Rangliste: [{ idx, points, rank }], bei Gleichstand entscheidet das Rating, du zuletzt. */
 export function ranking(c) {
   const rows = c.results.map((r, idx) => ({ idx, points: totalPoints(c, idx) }));
-  rows.sort((a, b) => b.points - a.points || ratingOf(b.idx) - ratingOf(a.idx));
+  rows.sort((a, b) => b.points - a.points || ratingOf(c, b.idx) - ratingOf(c, a.idx));
   rows.forEach((r, i) => { r.rank = i + 1; });
   return rows;
 }
-export function ranks(c) { const m = new Array(64); ranking(c).forEach(r => { m[r.idx] = r.rank; }); return m; }
-const ratingOf = idx => (idx === USER ? -1 : PLAYERS[idx].rating);
+export function ranks(c) { const m = new Array(c.results.length); ranking(c).forEach(r => { m[r.idx] = r.rank; }); return m; }
 
 // ---------- Turniere ----------
-export function tournament(ti) { return K.tournaments[ti]; }
-
 /** Darfst du mitspielen? { ok, wildcard } – wildcard: nur mit Wildcard möglich. */
 export function eligibility(c, ti) {
-  const t = tournament(ti), rank = ranks(c)[USER];
+  const t = tournament(c, ti), rank = ranks(c)[me(c)];
   if (t.cat === "final") return { ok: rank <= 8, wildcard: false, rank };
-  const need = K.entry[t.cat];
+  const need = (tierDef(c).entry || {})[t.cat];
   if (!need || rank <= need) return { ok: true, wildcard: false, rank };
   return { ok: false, wildcard: !c.wildcardUsed, rank, need };
 }
 
 /** Startet ein Turnier: Teilnehmer wählen, Gesetzte verteilen. */
 export function startTournament(c, ti, withUser, rand = Math.random) {
-  const t = tournament(ti), rk = ranks(c);
-  const [lo, hi] = K.pools[t.cat];
-  const pool = [...Array(63).keys()].filter(i => rk[i] >= lo && rk[i] <= hi);
+  const t = tournament(c, ti), rk = ranks(c), n = players(c).length, U = me(c);
+  const [lo, hi] = tierDef(c).pools[t.cat] || [1, n + 1];
+  const pool = [...Array(n).keys()].filter(i => rk[i] >= lo && rk[i] <= hi);
   const need = t.size - (withUser ? 1 : 0);
   // die besser Rangierten spielen eher: gewichtete Auswahl
   const chosen = [];
@@ -95,7 +118,7 @@ export function startTournament(c, ti, withUser, rand = Math.random) {
   weighted.sort((a, b) => b.w - a.w);
   for (const { i } of weighted) { if (chosen.length >= need) break; chosen.push(i); }
   if (t.cat === "final") { chosen.length = 0; pool.sort((a, b) => rk[a] - rk[b]).slice(0, need).forEach(i => chosen.push(i)); }
-  const entrants = withUser ? [...chosen, USER] : chosen;
+  const entrants = withUser ? [...chosen, U] : chosen;
   entrants.sort((a, b) => rk[a] - rk[b]);
 
   const cur = { ti, cat: t.cat, size: t.size, userIn: withUser, userOut: false, done: false, lost: {} };
@@ -131,49 +154,53 @@ export function roundKey(size, r) {
   return ["F", "SF", "QF", "R16", "R32"][fromEnd - 1];
 }
 
-/** Matchformat einer Runde: früh Kurzsatz bis 3, ab Halbfinal bis 4, Grand-Slam-Final zwei Gewinnsätze. */
-export function formatFor(c, key) {
-  const t = tournament(c.current.ti), F = K.format;
-  if (key === "F" && t.finalSets) return F.gsFinal;
-  return key === "F" || key === "SF" ? F.late : F.early;
+/** Matchformat: zwei Gewinnsätze, im Final drei (jeder Satz ein Kurzsatz). */
+export function formatFor(key) {
+  return key === "F" ? K.format.final : K.format.normal;
 }
 
 /** Nächstes Spiel für dich: { opp, key, roundIndex } oder null. */
 export function userNextMatch(c) {
-  const cur = c.current;
+  const cur = c.current, U = me(c);
   if (!cur || !cur.userIn || cur.userOut || cur.done) return null;
   if (cur.cat === "final") {
     if (cur.day < 3) {
-      const g = cur.groups.find(gr => gr.includes(USER)), pairs = groupPairs(g, cur.day);
-      const pr = pairs.find(([a, b]) => a === USER || b === USER);
-      return { opp: pr[0] === USER ? pr[1] : pr[0], key: "G", roundIndex: cur.day };
+      const g = cur.groups.find(gr => gr.includes(U)), pairs = groupPairs(g, cur.day);
+      const pr = pairs.find(([a, b]) => a === U || b === U);
+      return { opp: pr[0] === U ? pr[1] : pr[0], key: "G", roundIndex: cur.day };
     }
-    if (cur.semis && cur.day === 3) { const pr = cur.semis.find(([a, b]) => a === USER || b === USER); if (pr) return { opp: pr[0] === USER ? pr[1] : pr[0], key: "SF", roundIndex: 3 }; }
-    if (cur.final && cur.day === 4) { const [a, b] = cur.final; if (a === USER || b === USER) return { opp: a === USER ? b : a, key: "F", roundIndex: 4 }; }
+    if (cur.semis && cur.day === 3) { const pr = cur.semis.find(([a, b]) => a === U || b === U); if (pr) return { opp: pr[0] === U ? pr[1] : pr[0], key: "SF", roundIndex: 3 }; }
+    if (cur.final && cur.day === 4) { const [a, b] = cur.final; if (a === U || b === U) return { opp: a === U ? b : a, key: "F", roundIndex: 4 }; }
     return null;
   }
-  const r = cur.round, slots = cur.rounds[r], k = slots.indexOf(USER);
+  const r = cur.round, slots = cur.rounds[r], k = slots.indexOf(U);
   if (k < 0) return null;
   return { opp: slots[k ^ 1], key: roundKey(cur.size, r), roundIndex: r };
 }
 
-/** Wahrscheinlichkeit, dass a gegen b gewinnt (Hintergrund-Simulation). */
-export function winProb(a, b, roundIndex = 0) {
-  const ra = ratingOf(a) + roundIndex * 0, rb = ratingOf(b);
-  return 1 / (1 + Math.pow(10, (rb - ra) / K.elo));
+/** Freilose für dich: kampflos weiter, bis ein echter Gegner kommt. Gibt true zurück, wenn sich etwas geändert hat. */
+export function skipByes(c, rand = Math.random) {
+  let changed = false, m;
+  while ((m = userNextMatch(c)) && m.opp === null) { recordUserMatch(c, true, rand); changed = true; }
+  return changed;
 }
-const playOut = (a, b, rand) => (rand() < winProb(a, b) ? a : b);
+
+/** Wahrscheinlichkeit, dass a gegen b gewinnt (Hintergrund-Simulation), für Ratings oder eine Stufe. */
+export function winProbRating(ra, rb) { return 1 / (1 + Math.pow(10, (rb - ra) / K.elo)); }
+export function winProb(c, a, b) { return winProbRating(ratingOf(c, a), ratingOf(c, b)); }
+// Freilos: ein leerer Platz (null) verliert immer
+const playOut = (c, a, b, rand) => (a === null ? b : b === null ? a : rand() < winProb(c, a, b) ? a : b);
 
 /** Dein Match ist fertig: Ergebnis eintragen, die übrigen Spiele der Runde simulieren. */
 export function recordUserMatch(c, won, rand = Math.random) {
-  const cur = c.current;
+  const cur = c.current, U = me(c);
   if (cur.cat === "final") return advanceFinal(c, won, rand);
   const r = cur.round, slots = cur.rounds[r], next = [];
   for (let k = 0; k < slots.length; k += 2) {
     const a = slots[k], b = slots[k + 1];
     let w;
-    if (a === USER || b === USER) w = won ? USER : (a === USER ? b : a);
-    else w = playOut(a, b, rand);
+    if (a === U || b === U) w = won ? U : (a === U ? b : a);
+    else w = playOut(c, a, b, rand);
     next.push(w);
     cur.lost[w === a ? b : a] = r;
   }
@@ -195,53 +222,53 @@ export function simulateRest(c, rand = Math.random) {
   while (!cur.done) {
     const slots = cur.rounds[cur.round], next = [];
     for (let k = 0; k < slots.length; k += 2) {
-      const a = slots[k], b = slots[k + 1], w = playOut(a, b, rand);
+      const a = slots[k], b = slots[k + 1], w = playOut(c, a, b, rand);
       next.push(w); cur.lost[w === a ? b : a] = cur.round;
     }
     pushRound(c, next);
   }
 }
 
-// ---------- Saisonfinale ----------
+// ---------- Finale mit Gruppen ----------
 export function groupPairs(g, day) { return [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]][day].map(([x, y]) => [g[x], g[y]]); }
 
-/** Ein Spieltag (oder Halbfinal/Final) des Saisonfinales. won: dein Ergebnis oder null (ohne dich). */
+/** Ein Spieltag (oder Halbfinal/Final) des Finales. won: dein Ergebnis oder null (ohne dich). */
 function advanceFinal(c, won, rand) {
-  const cur = c.current;
-  const decide = (a, b) => (a === USER || b === USER) && won !== null ? (won ? USER : (a === USER ? b : a)) : playOut(a, b, rand);
+  const cur = c.current, U = me(c);
+  const decide = (a, b) => (a === U || b === U) && won !== null ? (won ? U : (a === U ? b : a)) : playOut(c, a, b, rand);
   if (cur.day < 3) {
     for (const g of cur.groups) for (const [a, b] of groupPairs(g, cur.day)) {
       const w = decide(a, b); cur.wins[w]++; cur.groupResults.push({ a, b, w });
     }
     cur.day++;
     if (cur.day === 3) {
-      const st = cur.groups.map(g => standings(cur, g));
+      const st = cur.groups.map(g => standings(c, cur, g));
       cur.semis = [[st[0][0], st[1][1]], [st[1][0], st[0][1]]];
-      if (cur.userIn && !cur.semis.flat().includes(USER)) cur.userOut = true;
+      if (cur.userIn && !cur.semis.flat().includes(U)) cur.userOut = true;
     }
     return cur;
   }
   if (cur.day === 3) {
     cur.final = cur.semis.map(([a, b]) => decide(a, b));
     cur.semis.forEach(([a, b], i) => { cur.lost[cur.final[i] === a ? b : a] = 3; });
-    if (cur.userIn && !cur.final.includes(USER)) cur.userOut = true;
+    if (cur.userIn && !cur.final.includes(U)) cur.userOut = true;
     cur.day = 4;
     return cur;
   }
   const [a, b] = cur.final, w = decide(a, b);
   cur.champion = w; cur.lost[w === a ? b : a] = 4; cur.done = true;
-  if (cur.userIn && w !== USER) cur.userOut = true;
+  if (cur.userIn && w !== U) cur.userOut = true;
   cur.day = 5;
   return cur;
 }
 
 /** Tabelle einer Gruppe: Siege, bei Gleichstand direkte Begegnung, dann Rating. */
-export function standings(cur, g) {
+export function standings(c, cur, g) {
   return [...g].sort((a, b) => {
     if (cur.wins[b] !== cur.wins[a]) return cur.wins[b] - cur.wins[a];
     const m = cur.groupResults.find(x => (x.a === a && x.b === b) || (x.a === b && x.b === a));
     if (m) return m.w === a ? -1 : 1;
-    return ratingOf(b) - ratingOf(a);
+    return ratingOf(c, b) - ratingOf(c, a);
   });
 }
 
@@ -264,45 +291,52 @@ export function pointsFor(cur, idx) {
 
 /** Ergebnis eintragen (rollende Wertung), nächstes Turnier vorbereiten. Gibt eine Zusammenfassung zurück. */
 export function closeTournament(c, track = true) {
-  const cur = c.current;
+  const cur = c.current, U = me(c), rolling = tierDef(c).tournaments.length;
   const before = ranks(c), ext = cur.external;
-  for (let i = 0; i < 64; i++) {
-    c.results[i].push(i === USER && ext ? ext.points : pointsFor(cur, i));
-    if (c.results[i].length > K.rolling) c.results[i].shift();
+  for (let i = 0; i < c.results.length; i++) {
+    c.results[i].push(i === U && ext ? ext.points : pointsFor(cur, i));
+    if (c.results[i].length > rolling) c.results[i].shift();
   }
   const summary = ext
-    ? { ti: cur.ti, season: c.season, champion: cur.champion, userIn: true, userPoints: ext.points, userWon: ext.won, duo: true }
-    : { ti: cur.ti, season: c.season, champion: cur.champion, userIn: cur.userIn, userPoints: pointsFor(cur, USER), userWon: cur.champion === USER };
+    ? { ti: cur.ti, tier: c.tier, season: c.season, champion: cur.champion, userIn: true, userPoints: ext.points, userWon: ext.won, duo: true }
+    : { ti: cur.ti, tier: c.tier, season: c.season, champion: cur.champion, userIn: cur.userIn, userPoints: pointsFor(cur, U), userWon: cur.champion === U };
   if (track) {
     c.prevRanks = before;
-    const after = ranks(c)[USER];
-    summary.rankBefore = before[USER]; summary.rankAfter = after;
+    const after = ranks(c)[U];
+    summary.rankBefore = before[U]; summary.rankAfter = after;
     c.stats.bestRank = Math.min(c.stats.bestRank, after);
-    if (summary.userWon) c.stats.titles.push(ext ? { ti: cur.ti, season: c.season, duo: true } : { ti: cur.ti, season: c.season });
-    c.history.push({ season: c.season, ti: cur.ti, points: summary.userPoints, result: ext ? ext.result : userResultKey(cur), duo: !!ext });
-    if (c.history.length > 40) c.history.shift();
+    if (summary.userWon) c.stats.titles.push({ ti: cur.ti, season: c.season, tier: c.tier, ...(ext ? { duo: true } : {}) });
+    c.history.push({ season: c.season, tier: c.tier, ti: cur.ti, points: summary.userPoints, result: ext ? ext.result : userResultKey(c, cur), duo: !!ext });
+    if (c.history.length > 60) c.history.shift();
+    c.tierPlayed = (c.tierPlayed || 0) + 1;
+    summary.canPromote = false;
   }
   c.current = null;
   c.ti++;
-  if (c.ti >= K.tournaments.length) { c.ti = 0; c.season++; c.wildcardUsed = false; }
+  if (c.ti >= rolling) { c.ti = 0; c.season++; c.wildcardUsed = false; }
+  if (track) summary.canPromote = canPromote(c);
   return summary;
 }
 
 /** Wie weit bist du gekommen? "W", "F", "SF", … oder "G" (Gruppe), "-" nicht gespielt. */
-export function userResultKey(cur) {
+export function userResultKey(c, cur) {
+  const U = me(c);
   if (!cur.userIn) return "-";
-  if (cur.champion === USER) return "W";
-  if (cur.cat === "final") return cur.final && cur.final.includes(USER) ? "F" : cur.semis && cur.semis.flat().includes(USER) ? "SF" : "G";
-  return roundKey(cur.size, cur.lost[USER]);
+  if (cur.champion === U) return "W";
+  if (cur.cat === "final") return cur.final && cur.final.includes(U) ? "F" : cur.semis && cur.semis.flat().includes(U) ? "SF" : "G";
+  return roundKey(cur.size, cur.lost[U]);
 }
 
 /**
  * Ergebnis eines Turniers zu zweit in die eigene Karriere eintragen: Es ersetzt deinen nächsten
  * Turnierplatz der Saison (die Computerspieler spielen ihn ohne dich). Geht nur, wenn gerade kein
- * Karriere-Turnier läuft. Gibt die Zusammenfassung zurück oder null.
+ * Karriere-Turnier läuft. Die Punkte richten sich nach der Kategorie dieses Turnierplatzes.
+ * Gibt die Zusammenfassung zurück oder null.
  */
-export function recordExternal(c, points, result, won, rand = Math.random) {
+export function recordExternal(c, result, won, rand = Math.random) {
   if (c.current) return null;
+  const P = K.points[tournament(c, c.ti).cat];
+  const points = P[result] ?? (result === "W" ? P.W ?? P.F ?? 0 : 0);
   startTournament(c, c.ti, false, rand);
   simulateRest(c, rand);
   c.current.external = { points, result, won };
@@ -310,9 +344,9 @@ export function recordExternal(c, points, result, won, rand = Math.random) {
 }
 
 // ---------- Computergegner aus Rating und Stil ----------
-/** Werte für ai.js und rules.js: hw (Schlägerbreite), up (Tempozuwachs), ai { … }. */
-export function opponentLevel(idx, roundIndex, baseLv, tournamentBonus = 0) {
-  const p = PLAYERS[idx], A = K.ai, S = K.styles[p.style] || {};
+/** Werte für ai.js und rules.js aus einem Spieler { rating, style }: hw, up, ai { … }. */
+export function levelFor(p, roundIndex, baseLv, tournamentBonus = 0) {
+  const A = K.ai, S = K.styles[p.style] || {};
   const [r0, r1] = K.ratingRange;
   const r = clamp01((p.rating + roundIndex * K.roundBoost + tournamentBonus - r0) / (r1 - r0));
   const v = key => lerp(A[key][0], A[key][1], r);
@@ -326,17 +360,22 @@ export function opponentLevel(idx, roundIndex, baseLv, tournamentBonus = 0) {
   };
   return { ...baseLv, hw: baseLv.hw + (S.hw || 0), up: baseLv.up + (S.up || 0), ai, strength: r };
 }
+export function opponentLevel(c, idx, roundIndex, baseLv, tournamentBonus = 0) {
+  return levelFor(player(c, idx), roundIndex, baseLv, tournamentBonus);
+}
 
 // ---------- Belohnungen ----------
 /** Freigeschaltete Schlägerfarben. */
 export function unlockedColors(c) {
-  const s = c.stats;
+  const s = c.stats, reached = c.tiersReached || [c.tier];
   return K.colors.filter(col =>
-    (!col.wins || s.wins >= col.wins) && (!col.titles || s.titles.length >= col.titles) && (!col.rank || s.bestRank <= col.rank));
+    (!col.wins || s.wins >= col.wins) && (!col.titles || s.titles.length >= col.titles) && (!col.tier || reached.includes(col.tier)));
 }
 
-/** Prüft eine geladene Karriere grob auf die richtige Form. */
+/** Prüft eine geladene Karriere grob auf die richtige Form (vorher migrateCareer aufrufen). */
 export function validCareer(c) {
-  return c && c.v === 1 && Array.isArray(c.results) && c.results.length === 64 && c.results.every(r => Array.isArray(r) && r.every(Number.isFinite))
-    && Number.isInteger(c.ti) && c.ti >= 0 && c.ti < K.tournaments.length && Number.isInteger(c.season) && c.stats && typeof c.stats === "object";
+  if (!c || c.v !== 2 || !TIER_PLAYERS[c.tier]) return false;
+  const n = TIER_PLAYERS[c.tier].length;
+  return Array.isArray(c.results) && c.results.length === n + 1 && c.results.every(r => Array.isArray(r) && r.every(Number.isFinite))
+    && Number.isInteger(c.ti) && c.ti >= 0 && c.ti < tierDef(c).tournaments.length && Number.isInteger(c.season) && c.stats && typeof c.stats === "object";
 }

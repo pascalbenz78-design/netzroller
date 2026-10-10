@@ -374,6 +374,21 @@ Laufend nachgeführt. Jeder Eintrag: was entschieden wurde und warum.
 78. **Grenzen:** Ein Turnier zu zweit lässt sich nach dem Neuladen nicht fortsetzen. Die Verbindung ist heute für zwei Handys gebaut; die Turnierlogik (`js/duotour.js`) kann schon vier Menschen verteilen.
 79. **Spiel zu zweit überträgt jetzt auch Effekt und Lenkung** eines Schlags (`cv`, `adj`). Vorher fehlte der Effekt; auf Sand hätten beide Handys einen leicht verschiedenen Flug berechnet.
 
+
+### Phase 7 (Wunsch von Pascal, 10.10.2026: Karriere in Stufen, zwei Gewinnsätze)
+
+80. **Vier Stufen:** Aargau (15 Gegner, Rating 850–1200) → Schweiz (31, 1100–1500) → Europa (47, 1350–1750) → Welt (die 63 Spieler aus Phase 5, Rating auf 1600–2000 angehoben). Jede Stufe hat eigene erfundene Spieler (`js/tiers.js`) und eigene Turniere pro Saison: Aargau 4 (drei Clubturniere im 8er-Feld und die Aargauer Meisterschaft), Schweiz 6 (inkl. Schweizer Meisterschaft), Europa 7 (inkl. Masters und Europa-Finale), Welt 8 (inkl. Grand Slam und Weltfinale).
+81. **Aufstieg:** ab Rang 5 (Aargau, Schweiz) bzw. Rang 8 (Europa), frühestens nach einer ganzen Saison in der Stufe (`minPlay`). Ohne diese Mindestdauer stieg in der Simulation sogar ein schwacher Spieler nach 2 Turnieren aus dem Aargau auf. Der Aufstieg ist ein Knopf, kein Zwang: Man kann in der Stufe weiterspielen, solange man die Rangierung hält. In der neuen Stufe startet man ganz unten; Statistik, Titel, Verlauf und Schlägerfarbe bleiben. Einen Abstieg gibt es nicht.
+82. **Spielstärke über alle Stufen:** Rating 850 bis 2000 wird auf Stärke 0 bis 1 abgebildet (`career.ratingRange`); die schwächsten Gegner zielen etwas ungenauer als bisher (Fehlerwert 0,70 statt 0,62). Damit sind die Aargauer klar schlagbar und die Welt-Tour spürbar schwerer als die Tour aus Phase 5.
+83. **Die Turniernamen im Aargau** übernehmen die Beispielnamen aus dem Auftrag (Aargau Open, Reuss Cup, Seetal Indoor) und die Aargauer Meisterschaft. Die Welt-Tour bekam internationale, erfundene Namen (Pazifik Open, Copacabana Clay, Tokio Indoor, Atlas Classic, Hudson Masters, Down Under Trophy, Grand Slam Netzroller, Weltfinale).
+84. **Rangliste pro Stufe:** Es zählen die Punkte der Turniere einer Saison der Stufe (rollend). Neue Punktetabellen: Clubturnier (Sieg 60), Regionalmeisterschaft (150), Landesmeisterschaft (500); Europa und Welt nutzen die bisherigen Tabellen.
+85. **Freilose:** Im Aargau gibt es nur 15 Gegner. Spielst du die Aargauer Meisterschaft (16er-Feld) nicht mit, bleibt ein Platz leer: Wer dort gelost wird, kommt kampflos weiter. Ziehst du selbst ein Freilos, geht es automatisch in die nächste Runde.
+86. **Zwei Gewinnsätze, im Final drei** (Wunsch von Pascal), jeder Satz ein Kurzsatz bis 3 Spiele. Gilt in allen Stufen, in den Finalturnieren mit Gruppen und im Turnier zu zweit inklusive Final gegeneinander. «Schnelles Spiel» und «Zu zweit» bleiben ein Kurzsatz. Ein Match dauert damit etwa doppelt so lang; im Autopilot-Test 5 bis 8 Minuten, ein Final bis gut 15 Minuten Spielzeit (ein Mensch spielt kürzere Ballwechsel als der Autopilot).
+87. **Schlägerfarben:** Violett gibt es neu für den Aufstieg in die Schweiz, Weiss für Europa, Platin für die Welt-Tour (statt Rang 10 und 3 Titeln).
+88. **Bestehende Karrieren** aus Phase 5 laufen als Stufe «Welt» weiter; alle Stufen gelten dabei als erreicht. Neue Karrieren beginnen im Aargau.
+89. **Turnier zu zweit:** Die Computergegner kommen aus der Stufe der Karriere des eröffnenden Handys (ohne die drei Besten, wenn das Feld reicht). Die Punkte richten sich nach der Kategorie des Turnierplatzes, den das Turnier zu zweit in der eigenen Karriere ersetzt.
+90. **Weltrangliste:** Hochgeladen werden jetzt Stufe, Ranglistenpunkte in der Stufe, Titel und der aktuelle Rang in der Stufe. Sortiert wird zuerst nach Stufe, dann nach Punkten: Wer in Europa spielt, steht vor allen im Aargau. Das Datenbank-Skript wurde entsprechend angepasst (noch nicht eingerichtet, deshalb ohne Übernahme alter Daten).
+
 ---
 
 ## Balance-Auswertung
@@ -408,18 +423,17 @@ Erzeugt mit `node tools/simulate.mjs machine 300`. Der Computergegner spielt als
 
 **Bewertung:** Ein geübter Spieler kommt im Mittel auf knapp 2½ Minuten pro Durchgang, ein Gelegenheitsspieler auf gut 2 Minuten. Der Richtwert «2 bis 5 Minuten» ist erfüllt. Stellschrauben: `machine.growth` (Tempozuwachs pro Rückschlag), `machine.lives`, `machine.afterError`.
 
-### Karriere
+### Karriere in Stufen
 
-Erzeugt mit `node tools/simulate.mjs tour 200`. Dein Matchgewinn wird nach Elo gegen das Rating des Gegners (mit Rundenbonus) ausgewürfelt; drei Spielstärken als Rating.
+Erzeugt mit `node tools/simulate.mjs tour 300`. Dein Matchgewinn wird nach Elo gegen das Rating des Gegners (mit Rundenbonus) ausgewürfelt; vier Spielstärken als Rating. Gezählt sind gespielte Turniere ab Karrierestart, Aufstieg sobald möglich.
 
-Punkte nach der Vorsaison: Rang 1 3010, Rang 8 730, Rang 32 110, Rang 40 10
-
-| Spielstärke (Rating) | Rang nach 4 Turnieren | nach Saison 1 | nach Saison 2 | Titel pro Saison | 1000/GS ohne Wildcard ab Saison 2 | im Saisonfinale |
+| Spielstärke (Rating) | Turniere bis Schweiz | bis Europa | bis Welt | Welt erreicht | Titel gesamt Ø | Rang auf der Welt-Tour nach 8 Turnieren |
 |---|---|---|---|---|---|---|
-| 1450 | 34 | 25 | 24 | 0.0 | 77.0 % | 1 % der Saisons |
-| 1600 | 25 | 13 | 13 | 0.2 | 98.0 % | 14 % der Saisons |
-| 1750 | 15 | 7 | 6 | 0.8 | 100.0 % | 68 % der Saisons |
+| 1250 | 4 | 28 | – | 0.0 % | 1.5 | – |
+| 1450 | 4 | 10 | 43 | 41.0 % | 3.8 | 39 |
+| 1650 | 4 | 10 | 17 | 100.0 % | 7.3 | 30 |
+| 1850 | 4 | 10 | 17 | 100.0 % | 14.0 | 11 |
 
-**Bewertung:** Wer mittelstark spielt (Rating 1600), steht nach einer Saison um Rang 13 und gewinnt etwa alle fünf Saisons ein Turnier; Starke (1750) kommen in die Top 8, spielen meist das Saisonfinale und holen fast jede Saison einen Titel. Die Rangliste bewegt sich damit nachvollziehbar. Masters und Grand Slam erreicht man ab der zweiten Saison meist ohne Wildcard. Wie stark ein Mensch im Vergleich zum Rating spielt, zeigt erst der Test am Handy; Stellschrauben: `career.ai`, `career.pools`, `career.roundBoost`.
+**Bewertung:** Aus dem Aargau steigt fast jeder nach der ersten Saison auf (die Aargauer sind schwach). In der Schweiz trennt sich das Feld: Starke Spieler sind nach einer Saison in Europa, schwächere brauchen mehrere. Die Welt-Tour erreichen nur Spieler ab etwa Rating 1450, und dort landet selbst ein sehr starker Spieler nach acht Turnieren erst um Rang 11. Stellschrauben: `career.tiers[].promoteTop`, `minPlay`, `pools`, `career.ai`.
 
 **Hinweis:** Die Simulation misst den Computer gegen sich selbst. Wie sich ein Satz für einen Menschen anfühlt, entscheidet der Test am Handy. Die wichtigsten Stellschrauben dafür: `levels[].ai.err` (Treffsicherheit des Computers), `zones` (Risiko der Schlägerkante), `serve.first/second` (Zeitfenster beim Aufschlag).

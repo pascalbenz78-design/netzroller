@@ -8,6 +8,7 @@
 
 import { BALANCE as B } from "./balance.js";
 import * as TO from "./tour.js";
+import { TIER_PLAYERS } from "./tiers.js";
 
 const D = B.duoTour;
 const isHuman = p => typeof p === "string";
@@ -16,12 +17,13 @@ const shuffle = (a, rand) => { for (let i = a.length - 1; i > 0; i--) { const j 
 /**
  * Neues Turnier.
  * @param humans [{ id: "H0", name, land }, …] (2 oder 4)
- * @param ranks  Ranglistenplätze der Computerspieler (aus der Karriere des eröffnenden Handys)
+ * @param career Karriere des eröffnenden Handys: Die Computerspieler kommen aus deren Stufe
  */
-export function createDuoTour(humans, ranks, rand = Math.random) {
-  const size = D.size, nH = humans.length, sec = size / nH;
-  const [lo, hi] = D.pool;
-  const pool = shuffle([...Array(63).keys()].filter(i => ranks[i] >= lo && ranks[i] <= hi), rand);
+export function createDuoTour(humans, career, rand = Math.random) {
+  const size = D.size, nH = humans.length, sec = size / nH, ranks = TO.ranks(career), n = TO.players(career).length;
+  // ohne die drei Besten der Stufe; reicht das Feld nicht, kommen auch sie dazu
+  let pool = shuffle([...Array(n).keys()].filter(i => ranks[i] > 3), rand);
+  if (pool.length < size - nH) pool = shuffle([...Array(n).keys()], rand);
   const cpu = pool.slice(0, size - nH).sort((a, b) => ranks[a] - ranks[b]);
   const slots = new Array(size).fill(null);
   // Gesetzte Computerspieler wie in der Karriere
@@ -37,7 +39,7 @@ export function createDuoTour(humans, ranks, rand = Math.random) {
   for (let i = 0, j = 0; i < size; i++) if (slots[i] === null) slots[i] = rest[j++];
   const surfaces = D.surfaces;
   return {
-    v: 1, id: Math.random().toString(36).slice(2, 8), rev: 1, size, cat: D.cat,
+    v: 1, id: Math.random().toString(36).slice(2, 8), rev: 1, size, cat: D.cat, tier: career.tier,
     surface: surfaces[Math.floor(rand() * surfaces.length)],
     humans, rounds: [slots], round: 0, res: {}, lost: {}, champion: null, done: false,
   };
@@ -84,7 +86,7 @@ export function advance(st, rand = Math.random) {
     if (isHuman(a) || isHuman(b)) {
       const h = isHuman(a) ? a : b;
       w = st.res[st.round + ":" + h] ? h : (h === a ? b : a);
-    } else w = rand() < TO.winProb(a, b) ? a : b;
+    } else w = rand() < TO.winProbRating(cpuPlayer(st, a).rating, cpuPlayer(st, b).rating) ? a : b;
     next.push(w);
     st.lost[w === a ? b : a] = st.round;
   }
@@ -109,13 +111,17 @@ export function pointsFor(st, hid) {
 /** Name und Land eines Platzes für die Anzeige. */
 export function who(st, p) {
   if (isHuman(p)) { const h = st.humans.find(x => x.id === p); return { name: h ? h.name : "?", land: h ? h.land : "NR", human: true }; }
-  const pl = TO.PLAYERS[p];
+  const pl = cpuPlayer(st, p);
   return { name: pl.name, land: pl.land, style: pl.style, human: false };
 }
+
+/** Computerspieler eines Platzes (aus der Stufe des Turniers). */
+export function cpuPlayer(st, p) { return TIER_PLAYERS[st.tier || "WORLD"][p]; }
 
 /** Grobe Prüfung eines empfangenen Turnierstands. */
 export function validDuo(st) {
   return st && st.v === 1 && Array.isArray(st.rounds) && st.rounds.length >= 1 && Array.isArray(st.humans)
-    && st.rounds.every(r => Array.isArray(r) && r.every(p => typeof p === "string" || (Number.isInteger(p) && p >= 0 && p < 63)))
+    && TIER_PLAYERS[st.tier || "WORLD"]
+    && st.rounds.every(r => Array.isArray(r) && r.every(p => typeof p === "string" || (Number.isInteger(p) && p >= 0 && p < TIER_PLAYERS[st.tier || "WORLD"].length)))
     && Number.isInteger(st.round) && st.round < st.rounds.length && typeof st.res === "object";
 }

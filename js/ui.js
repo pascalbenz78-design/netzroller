@@ -143,7 +143,7 @@ function renderWorld(profile, rows) {
       meta.textContent = T.rankKmh(r.machine_speed ?? 0) + " · " + countryName(r.land);
     } else {
       pts.textContent = T.rankPoints(r.ranking_points ?? 0);
-      meta.textContent = T.worldTitles(r.titles ?? 0) + (r.best_rank ? " · " + T.worldBest(r.best_rank) : "") + " · " + countryName(r.land);
+      meta.textContent = (r.tier ? T.worldTier(T.tierNames[r.tier] || r.tier, r.tier_rank) + " · " : "") + T.worldTitles(r.titles ?? 0) + " · " + countryName(r.land);
     }
     li.append(rank, name, pts, meta);
     list.appendChild(li);
