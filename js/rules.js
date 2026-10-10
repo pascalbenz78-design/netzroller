@@ -117,7 +117,8 @@ function finish(sh, lv, rand, opts) {
     sh.bd = 1 + bv;
     judge(sh);
   }
-  if (sh.res === "in" || sh.res === "let") keepReachable(sh);
+  // Jeder Ball bleibt erreichbar – ausser ein wirklich perfekter erster Aufschlag (Ass möglich)
+  if ((sh.res === "in" || sh.res === "let") && !sh.ace) keepReachable(sh);
   if (!opts.noFloor) applyReactionFloor(sh, lv.minReaction);
   return sh;
 }
@@ -244,7 +245,8 @@ export function makeServe(o, lv, rand = Math.random, opts = {}) {
   if (quality === "long") bv = C.serviceLine + uni(rand, S.long);
 
   const sh = { kind: "serve", x0: o.x0, bx, bd: 1 + Math.min(bv, C.bounceMax), s1: speed, s2: speed, why, nc: false,
-               serve: o.no, side: o.side, sup: !!o.sup, ns: lv.base, frame: false, quality, res: "in" };
+               serve: o.no, side: o.side, sup: !!o.sup, ns: lv.base, frame: false, quality, res: "in",
+               ace: o.no === 1 && Math.abs(o.err) <= S.ace };
   sh.xn = sh.x0 + (sh.bx - sh.x0) / sh.bd;
   judge(sh);
   return finish(sh, lv, rand, opts);

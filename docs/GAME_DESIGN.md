@@ -389,6 +389,8 @@ Laufend nachgeführt. Jeder Eintrag: was entschieden wurde und warum.
 89. **Turnier zu zweit:** Die Computergegner kommen aus der Stufe der Karriere des eröffnenden Handys (ohne die drei Besten, wenn das Feld reicht). Die Punkte richten sich nach der Kategorie des Turnierplatzes, den das Turnier zu zweit in der eigenen Karriere ersetzt.
 90. **Weltrangliste:** Hochgeladen werden jetzt Stufe, Ranglistenpunkte in der Stufe, Titel und der aktuelle Rang in der Stufe. Sortiert wird zuerst nach Stufe, dann nach Punkten: Wer in Europa spielt, steht vor allen im Aargau. Das Datenbank-Skript wurde entsprechend angepasst (noch nicht eingerichtet, deshalb ohne Übernahme alter Daten).
 
+91. **Ass beim perfekten Aufschlag** (Rückmeldung von Pascal): Trifft der erste Aufschlag den höchsten Punkt besonders genau (Abweichung höchstens 0,05, `serve.ace`), entfällt die Lenkung in Reichweite. Ist er dazu ganz breit gezielt, kann er unerreichbar sein (bei rund 4 % dieser Aufschläge). Alle anderen Aufschläge und Schläge bleiben erreichbar.
+
 ---
 
 ## Balance-Auswertung

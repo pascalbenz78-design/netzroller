@@ -71,6 +71,7 @@ export const BALANCE = {
   serve: {
     tossTime: 1.1,                              // Ball hoch und wieder unten (s)
     first: { perfect: 0.10, good: 0.30 },        // Zeitfenster als Abweichung vom höchsten Punkt (0..1)
+    ace: 0.05,                                  // erster Aufschlag noch genauer getroffen: darf unerreichbar sein (Ass)
     second: { perfect: 0.12, good: 0.55 },
     speed: { perfect: 1.8, good: 1.35, second: 0.95 },  // × Grundtempo der Stufe
     zoneInner: 0.53, zoneOuter: 0.80,           // Aufschlagposition: nahe Mitte = «Mitte», aussen = «nach aussen»

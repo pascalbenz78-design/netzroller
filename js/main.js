@@ -429,7 +429,7 @@ function cleanShot(x) {
     bd: n(x.bd, 1.02, 1.99, 1.6), s1: n(x.s1, 0.1, 12, LV.base), s2: n(x.s2, 0.1, 12, LV.base),
     res: one(x.res, ["in", "out", "net", "fault", "let"], "in"), why: one(x.why, ["wide", "long", "net", null], null),
     nc: !!x.nc, serve: one(x.serve, [0, 1, 2], 0), side: one(x.side, ["deuce", "ad"], "deuce"),
-    sup: !!x.sup, ns: n(x.ns, 0.1, 6, LV.base), frame: !!x.frame, quality: String(x.quality || ""),
+    sup: !!x.sup, ns: n(x.ns, 0.1, 6, LV.base), frame: !!x.frame, quality: String(x.quality || ""), ace: !!x.ace,
     cv: n(x.cv, -0.3, 0.3, 0), adj: n(x.adj, -1, 1, 0),
   };
 }
