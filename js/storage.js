@@ -7,7 +7,7 @@ const CODE_PREFIX = "NR1.";
 export const DEFAULT_SETTINGS = { sound: true, voice: true, vibration: true, lefty: false, swipe: true, intro: true };
 
 function defaults() {
-  return { v: 1, name: "", land: "CH", level: 1, settings: { ...DEFAULT_SETTINGS }, introSeen: "", highscores: [], career: null };
+  return { v: 1, name: "", land: "CH", level: 1, settings: { ...DEFAULT_SETTINGS }, introSeen: "", highscores: [], career: null, online: null };
 }
 
 /** Übernimmt nur bekannte Felder mit gültigen Werten. */
@@ -23,7 +23,20 @@ function sanitize(src) {
   if (typeof src.introSeen === "string") p.introSeen = src.introSeen.slice(0, 10);
   if (Array.isArray(src.highscores)) p.highscores = cleanHighscores(src.highscores);
   if (src.career && typeof src.career === "object") p.career = src.career;   // genauer geprüft in tour.validCareer
+  if (src.online && typeof src.online === "object") p.online = cleanOnline(src.online);
   return p;
+}
+
+/** Online-Identität (Weltrangliste): ID, geheimer Schlüssel, Teilnahme, noch nicht gesendete Einträge. */
+function cleanOnline(o) {
+  const r = {};
+  if (/^[0-9a-f-]{36}$/.test(o.id || "")) r.id = o.id;
+  if (/^[0-9a-f]{32,64}$/.test(o.key || "")) r.key = o.key;
+  r.join = o.join !== false;
+  r.pendingScores = Array.isArray(o.pendingScores) ? o.pendingScores.filter(x => x && Number.isInteger(x.points) && Number.isInteger(x.kmh)).slice(0, 3) : [];
+  if (o.pendingCareer && typeof o.pendingCareer === "object") r.pendingCareer = o.pendingCareer;
+  if (typeof o.registered === "string") r.registered = o.registered;
+  return r;
 }
 
 /** Ballmaschine-Highscores: nur gültige Einträge, höchstens 10, absteigend. */
@@ -62,8 +75,8 @@ function toB64(str) { return btoa(unescape(encodeURIComponent(str))).replace(/\+
 function fromB64(b) { b = b.replace(/-/g, "+").replace(/_/g, "/"); while (b.length % 4) b += "="; return decodeURIComponent(escape(atob(b))); }
 
 export function exportCode(p) {
-  const { name, land, level, settings, highscores, career } = p;
-  return CODE_PREFIX + toB64(JSON.stringify({ v: 1, name, land, level, settings, highscores, career }));
+  const { name, land, level, settings, highscores, career, online } = p;
+  return CODE_PREFIX + toB64(JSON.stringify({ v: 1, name, land, level, settings, highscores, career, online }));
 }
 
 /** Liest einen Code; wirft einen Fehler, wenn er nicht passt. Gibt ein vollständiges Profil zurück. */

@@ -357,6 +357,23 @@ Laufend nachgeführt. Jeder Eintrag: was entschieden wurde und warum.
 65. **Schlägerfarben** (nur Optik): Klassik, Rot ab dem ersten Sieg, Blau ab 10 Siegen, Gold ab dem ersten Titel, Violett ab Rang 10, Weiss ab 3 Titeln. Neue Farben werden nach dem Match oder nach dem Turnier gemeldet und in der Vitrine gewählt. Die Farbe gilt in allen Modi.
 66. **Speicherung:** Die Karriere steht im Profil und reist mit dem Export-Code mit (der Code wird dadurch deutlich länger). Ein laufendes Turnier bleibt gespeichert; man kann jederzeit zurück ins Menü und später weitermachen.
 
+
+### Phase 6
+
+67. **Jeder Ball im Feld ist erreichbar** (Rückmeldung von Pascal: Aufschläge waren zum Teil unhaltbar). Messung vorher: rund 3,7 % der Aufschläge und knapp 1 % der Rückschläge kamen an der Schlägerlinie so weit aussen an, dass kein Schläger sie erreichen konnte. Jetzt wird jeder Ball nach dem Aufsprung so gelenkt, dass er im Band 7 % bis 93 % der Breite ankommt (`reach.band`); Aufsprungpunkt und Linienentscheid bleiben unverändert. Zusätzlich wächst die Reaktionszeit-Untergrenze mit dem seitlichen Weg ab der Mitte (`reach.lateral`, 2,4 Platzbreiten/s). Ergebnis: 0 von je rund 18 500 Aufschlägen unerreichbar; ganz breite Bälle lassen auf Schwer mindestens 0,42 s statt 0,26 s. Ein genauer, breiter Aufschlag bleibt schwierig, weil er ganz aussen ankommt. Asse auf Mittel sanken von 11 % auf 7 %.
+68. **Weltrangliste ohne Bibliothek:** Das Spiel spricht die REST-Schnittstelle von Supabase direkt an. Schreiben geht nur über drei Funktionen (`nr_register`, `nr_submit_score`, `nr_submit_career`), die den Profil-Schlüssel prüfen. Die Tabellen haben Row Level Security; lesen dürfen alle, die Prüfsumme des Schlüssels ist für niemanden lesbar.
+69. **Identität:** Jedes Profil bekommt beim ersten Start eine zufällige ID (UUID) und einen geheimen Schlüssel (40 Hex-Zeichen). Beide reisen mit dem Export-Code mit, damit ein Gerätewechsel derselbe Eintrag bleibt.
+70. **Was hochgeladen wird:** nach jedem Ballmaschinen-Durchgang die Punkte und das Höchsttempo; nach jedem Karriere-Turnier die aktuellen Ranglistenpunkte, die Titel und die beste Rangierung. Nicht gesendete Einträge bleiben im Profil (höchstens die drei besten Durchgänge) und werden beim nächsten Start oder beim Öffnen der Weltrangliste nachgeschickt. Ohne Namen wird nichts hochgeladen.
+71. **Teilnahme abschaltbar** in den Einstellungen (Standard: an, sobald die Weltrangliste eingerichtet ist). Der Schalter erscheint nur, wenn Supabase eingetragen ist.
+72. **Test ohne Supabase:** `tools/mock-supabase.mjs` bildet die drei Funktionen und die Ansicht nach (gleiche Prüfungen, Zeitfenster einstellbar). Gegen ein echtes Supabase-Projekt ist nicht getestet, weil noch keines eingerichtet ist.
+73. **Turnier zu zweit:** 16er-Feld der Kategorie 250 mit Computerspielern aus Rang 17 bis 64 (aus der Karriere des eröffnenden Handys), Belag zufällig. Jeder Mensch bekommt einen Abschnitt des Felds (Hälfte, bei 4 Spielern Viertel) und einen freien, ungesetzten Platz darin.
+74. **Wer führt den Turnierstand:** das eröffnende Handy. Es schickt den ganzen Stand (rund 300 Zeichen) im Präsenz-Objekt; das andere Handy meldet seine Ergebnisse (`tres`) zurück. Eine Runde wird abgeschlossen, sobald alle Menschen ihr Spiel dieser Runde gespielt haben; dann werden die Computerspiele simuliert.
+75. **Final gegeneinander:** Beide tippen «Bereit». Dann startet ein normales Match zu zweit über die bestehende Verbindung (Satz bis 4), mit festem Startstand auf beiden Handys. Herzschlag, Pause und Epoche aus Phase 4 gelten auch hier.
+76. **Spielstand nur im Match zu zweit teilen:** Während der Computermatches des Turniers wird der Spielstand nicht mehr ins Präsenz-Objekt geschrieben. Im Test hatte sonst das beitretende Handy beim Start des Finals den alten Stand eines Computermatches übernommen.
+77. **Punkte in der eigenen Karriere:** Das Turnier zu zweit ersetzt den nächsten Turnierplatz der eigenen Saison (die Computerspieler spielen diesen Platz ohne dich), damit die rollende Wertung für alle Spieler gleich viele Turniere zählt. Läuft gerade ein Karriere-Turnier, zählt das Turnier zu zweit nicht.
+78. **Grenzen:** Ein Turnier zu zweit lässt sich nach dem Neuladen nicht fortsetzen. Die Verbindung ist heute für zwei Handys gebaut; die Turnierlogik (`js/duotour.js`) kann schon vier Menschen verteilen.
+79. **Spiel zu zweit überträgt jetzt auch Effekt und Lenkung** eines Schlags (`cv`, `adj`). Vorher fehlte der Effekt; auf Sand hätten beide Handys einen leicht verschiedenen Flug berechnet.
+
 ---
 
 ## Balance-Auswertung

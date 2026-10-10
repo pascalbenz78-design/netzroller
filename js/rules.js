@@ -72,7 +72,9 @@ export function xAt(sh, d) {
   let x;
   if (d <= 1) x = sh.x0 + (sh.xn - sh.x0) * d;
   else x = sh.xn + ((sh.bx - sh.xn) / Math.max(sh.bd - 1, 0.02)) * (d - 1);
-  return sh.cv ? x + curve(sh, d) : x;
+  if (sh.cv) x += curve(sh, d);
+  if (sh.adj && d > sh.bd) x += sh.adj * Math.min(1, (d - sh.bd) / Math.max(2 - sh.bd, 0.02));   // nach dem Aufsprung in Reichweite lenken
+  return x;
 }
 
 /**
@@ -86,12 +88,23 @@ function curve(sh, d) {
   return -k * b * (d - b);
 }
 
-/** Begrenzt das Tempo so, dass der Empfänger mindestens minReaction Sekunden hat. */
+/**
+ * Begrenzt das Tempo so, dass der Empfänger mindestens minReaction Sekunden hat, plus Zeit für den
+ * seitlichen Weg von der Mitte bis dorthin, wo der Ball ankommt.
+ */
 function applyReactionFloor(sh, minReaction) {
   if (!minReaction) return sh;
+  const need = minReaction + Math.abs(xAt(sh, 2) - 0.5) / B.reach.lateral;
   const t = timeline(sh).tRacket;
-  if (t < minReaction) { const k = t / minReaction; sh.s1 *= k; sh.s2 *= k; }
+  if (t < need) { const k = t / need; sh.s1 *= k; sh.s2 *= k; }
   return sh;
+}
+
+/** Jeder Ball im Feld bleibt erreichbar: Kommt er an der Schlägerlinie zu weit aussen an, wird er nach dem Aufsprung gelenkt. */
+function keepReachable(sh) {
+  sh.adj = 0;
+  const x = xAt(sh, 2), [lo, hi] = B.reach.band;
+  if (x < lo) sh.adj = lo - x; else if (x > hi) sh.adj = hi - x;
 }
 
 function finish(sh, lv, rand, opts) {
@@ -104,6 +117,7 @@ function finish(sh, lv, rand, opts) {
     sh.bd = 1 + bv;
     judge(sh);
   }
+  if (sh.res === "in" || sh.res === "let") keepReachable(sh);
   if (!opts.noFloor) applyReactionFloor(sh, lv.minReaction);
   return sh;
 }

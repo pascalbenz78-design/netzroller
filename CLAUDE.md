@@ -29,6 +29,11 @@ Tennisspiel für den Browser (Draufsicht), zwei Handys gegeneinander oder allein
 | `js/machine.js` | Ballmaschine: Leben, Kombo, Zielscheiben, Tempo, Highscore |
 | `js/tour.js` | Karriere: Spieler, Turniere, Raster, Simulation, Rangliste, Belohnungen |
 | `js/careerui.js` | Karriere-Bildschirme: Übersicht, Turnierbaum, Rangliste, Vitrine, Siegerehrung |
+| `js/duotour.js` | Turnier zu zweit: Feld, Ergebnisse, Runden (bis 4 Menschen vorbereitet) |
+| `js/duoui.js` | Anzeige des Turniers zu zweit |
+| `js/online.js` | Weltrangliste über Supabase (REST), Identität, Nachsenden |
+| `docs/supabase.sql` | Datenbank-Skript für Supabase (Tabellen, Schutzregeln, Funktionen) |
+| `tools/mock-supabase.mjs` | nachgebauter Supabase-Server zum Testen |
 | `js/main.js` | Spielablauf, Eingabe, Zeichnen, Hawk-Eye, Spiel zu zweit |
 | `js/ui.js` | Hauptmenü, Zu zweit, Einstellungen, Match-Intro mit Münzwurf |
 | `js/intro.js` | Stadion-Intro (Canvas und Web Audio) |
@@ -65,6 +70,8 @@ __netzroller.state;                // mode, phase, score, serveNo, hawk, run (Ba
 document.getElementById("machineBtn").click();   // Ballmaschine (der Autopilot spielt auch hier)
 ```
 
+Weltrangliste ohne Supabase testen: `node tools/mock-supabase.mjs 8766 5` starten, dann `__netzroller.test.supabase("http://localhost:8766", "test-anon-key")`.
+
 Verbindungsausfall simulieren (nur Direktverbindung): `__netzroller.test.drop(6)` verwirft 6 s lang alle Daten dieses Tabs. Für zwei Tabs mit getrenntem Speicher (z. B. «Spiel fortsetzen» nach dem Neuladen) einen Tab über `localhost`, den anderen über `127.0.0.1` öffnen.
 
 Für zwei Spieler: zwei Tabs, einer eröffnet, einer tritt mit dem Code bei, in beiden den Autopiloten einschalten und mit `setInterval(() => __netzroller.runFor(0.1), 30)` antreiben. Am Ende müssen beide denselben Spielstand haben.
@@ -79,8 +86,8 @@ Für zwei Spieler: zwei Tabs, einer eröffnet, einer tritt mit dem Code bei, in 
 | 2 | Präsentation: Intro, Match-Intro, Hawk-Eye, Stimme, Publikum, Hauptmenü, Einstellungen | abgenommen |
 | 3 | Ballmaschine (Endlos-Modus, Highscore) | abgenommen |
 | 4 | Stabile Verbindung (Herzschlag, Pause, Wiederverbinden) | abgenommen |
-| 5 | Karriere (Tour, Turniere, Rangliste) | **fertig, wartet auf Abnahme** |
-| 6 | Turnier zu zweit, Weltrangliste mit Supabase | offen |
+| 5 | Karriere (Tour, Turniere, Rangliste) | abgenommen |
+| 6 | Turnier zu zweit, Weltrangliste mit Supabase | **fertig, wartet auf Einrichtung von Supabase und Abnahme** |
 
 ### Phase 1 im Detail
 
@@ -143,3 +150,13 @@ Erledigt:
 - Getestet: ganzes Turnier gespielt (Autopilot) bis zur Siegerehrung, Rangliste und Vitrine, Rest der Saison übersprungen, Saisonfinale als Zuschauer, Saison 2 beginnt; Aufgeben zählt als Niederlage; Schnelles Spiel, Ballmaschine und Spiel zu zweit weiterhin fehlerfrei. Simulation über zwei Saisons.
 
 Nicht getestet: eine ganze Saison von Hand gespielt; das Saisonfinale als Teilnehmer im Browser (nur in der Simulation).
+
+### Phase 6 im Detail
+
+Erledigt:
+- Turnier zu zweit: gemeinsames Feld, verschiedene Hälften, gleichzeitige Computermatches, Live-Stand des anderen, Anfeuern, Final gegeneinander, Punkte in die eigene Karriere.
+- Weltrangliste: Datenbank-Skript mit Row Level Security und geprüften Funktionen, Identität pro Profil, Hochladen nach Ballmaschine und Karriere-Turnier, Nachsenden, Ansicht Karriere/Ballmaschine, Teilnahme abschaltbar, Anleitung in der README.
+- Fix auf Rückmeldung: Jeder Ball im Feld ist erreichbar (Lenkung nach dem Aufsprung, mehr Zeit für weite Wege).
+- Getestet: ganzes Turnier zu zweit über zwei Tabs bis zum Final gegeneinander und zum Abschluss; Weltrangliste gegen den nachgebauten Server mit zwei Geräten, Sperrfrist und Nachsenden; Erreichbarkeit mit 18 500 Aufschlägen pro Stufe; Schnelles Spiel weiterhin fehlerfrei.
+
+Offen: Supabase-Projekt einrichten (Pascal, Anleitung in der README) und danach die Weltrangliste auf zwei echten Geräten prüfen.

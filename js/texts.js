@@ -140,6 +140,36 @@ export const T = {
   newCareer: "Neue Karriere starten", newCareerConfirm: "Wirklich? Alles in der Karriere wird gelöscht. Nochmals tippen zum Bestätigen.",
   rankUp: n => `↑${n}`, rankDown: n => `↓${n}`, rankSame: "=",
 
+  // Turnier zu zweit (Phase 6)
+  modeDuoTourSub: "Gemeinsam im selben Turnier",
+  duoTourName: "Turnier zu zweit", duoTourTitle: "Turnier zu zweit", duoTourHost: "Turnier eröffnen",
+  duoTourHelp: "Ihr kommt ins selbe Turnierfeld, in verschiedene Hälften. Jeder spielt gleichzeitig gegen seinen Computergegner. Kommt ihr beide in den Final, spielt ihr gegeneinander.",
+  duoWaitHost: "Warte auf das Turnierfeld …",
+  duoYourMatch: (round, who) => `Dein ${round}: gegen ${who}`,
+  duoWaitOther: who => `Warte, bis ${who} fertig gespielt hat …`,
+  duoOtherLive: (who, round, a, b, opp) => `${who} spielt ${round} gegen ${opp}: ${a}:${b}`,
+  duoOtherDone: (who, won) => (won ? `${who} hat gewonnen` : `${who} ist ausgeschieden`),
+  duoOut: "Du bist ausgeschieden. Du kannst weiter zuschauen und anfeuern.",
+  duoCheer: "Anfeuern", duoCheered: who => `${who} feuert dich an!`, duoCheerSent: "Angefeuert!",
+  duoFinalReady: who => `Final gegen ${who}: Bereit`, duoFinalWait: who => `Warte, bis ${who} bereit ist …`,
+  duoFinalEvent: "Turnier zu zweit · Final",
+  duoClose: "Turnier abschliessen", duoLeave: "Turnier verlassen",
+  duoRecorded: (pts, a, b) => `In deiner Karriere eingetragen: +${pts} Punkte · Rang ${a} → ${b}`,
+  duoNotRecorded: "Weil in deiner Karriere gerade ein Turnier läuft, zählt dieses Turnier nicht für die Rangliste.",
+  duoChampion: who => `Sieger: ${who}`,
+
+  // Weltrangliste (Phase 6)
+  rankLocal: "Auf diesem Gerät", rankWorld: "Weltrangliste", worldCareer: "Karriere", worldMachine: "Ballmaschine",
+  worldLoading: "Lade Weltrangliste …",
+  worldOff: "Die Weltrangliste ist noch nicht eingerichtet. Die Anleitung steht in der README unter «Weltrangliste einrichten».",
+  worldError: "Die Weltrangliste ist gerade nicht erreichbar. Deine Ergebnisse werden später nachgeschickt.",
+  worldEmpty: "Noch niemand eingetragen.",
+  worldOptOut: "Du erscheinst nicht in der Weltrangliste (Einstellungen).",
+  worldNoName: "Setz in den Einstellungen deinen Namen, dann erscheinst du hier.",
+  worldPending: n => (n === 1 ? "1 Ergebnis wartet noch aufs Hochladen." : `${n} Ergebnisse warten noch aufs Hochladen.`),
+  worldTitles: n => (n === 1 ? "1 Titel" : `${n} Titel`), worldBest: r => `beste Rangierung ${r}`,
+  setOnline: "In der Weltrangliste erscheinen (nur Name und Land)",
+
   // Verbindung (Phase 4)
   netPaused: "Verbindung unterbrochen", netWaiting: who => `Warte auf ${who} …`,
   netHint: "Klappt es nicht? Wechselt beide ins selbe WLAN. Das Spiel geht danach mit demselben Spielstand weiter.",

@@ -20,6 +20,10 @@ import * as MA from "./machine.js";
 import { renderHighscores } from "./ui.js";
 import * as TO from "./tour.js";
 import { initCareerUI, showBracket, reportMatch, racketColor } from "./careerui.js";
+import * as ON from "./online.js";
+import * as DT from "./duotour.js";
+import { renderDuo } from "./duoui.js";
+import { SUPABASE } from "./config.js";
 
 const $ = id => document.getElementById(id);
 const cv = $("cv"), ctx = cv.getContext("2d");
@@ -51,6 +55,9 @@ let marks = [], flashes = [], trail = [], netShake = 0, resetTok = 0, pending = 
 let rallyStrokes = 0, hawk = null, activeIntro = null;
 let run = null, popups = [], fireworks = [], fwTimer = 0, machineFlash = 0;   // Ballmaschine
 // Karriere (Phase 5): laufendes Match, Belag, Statistik
+// Turnier zu zweit (Phase 6)
+let tourWanted = false, duo = null, duoMe = "H0", duoOther = null, duoMatch = null, duoFinal = false, duoReturn = false;
+let duoLive = null, duoReady = false, duoClosed = false, duoNote = "", lastTres, lastCheer, oppFready = "", netRole = "A";
 let careerMatch = null, careerReturn = false, matchOpts = {}, surfaceCol = null, matchStats = null, myRacketCol = null;
 // Verbindung zu zweit (Phase 4): Herzschlag, Pause, Epoche für wiederholte Punkte, Nachfragen
 let paused = false, pausedAt = 0, matchStarted = false, lastHeard = 0, lastHb, hbN = 0, lastHbSent = 0, lastWatch = 0, epoch = 0;
@@ -279,8 +286,9 @@ function scorePoint(w) {
 function applyScore(s2, mine) {
   const prev = score;
   if (careerMatch && s2.seq > prev.seq) matchStats.longestRally = Math.max(matchStats.longestRally, rallyStrokes);
+  if (duoMatch) publish({ live: { r: duoMatch.no, key: duoMatch.key, a: s2.g[myRole], b: s2.g[other(myRole)], opp: oppName } });
   score = s2;
-  if (mine) publish({ score: s2 });
+  if (mine && mode === "play") publish({ score: s2 });     // nur im Match zu zweit teilen
   saveLastGame();
   pending = []; ++resetTok;
   if (hawk && !mine) hawk.then = () => {};          // Punkt kam vom anderen Handy: Wiederholung nur noch zeigen
@@ -376,7 +384,8 @@ function renderBoard() {
   $("pMe").textContent = ta; $("pOp").textContent = tb;
   $("srvMe").classList.toggle("on", R.server(score) === me);
   $("srvOp").classList.toggle("on", R.server(score) === op);
-  let st = careerMatch ? careerMatch.tName + " · " + careerMatch.round : T.status(LV.name, GAMES);
+  const mc = careerMatch || duoMatch;
+  let st = mc ? mc.tName + " · " + mc.round : duoFinal ? T.duoFinalEvent : T.status(LV.name, GAMES);
   if ((score.sw || 1) > 1) st += " · " + T.setsLine(score.st[me], score.st[op]);
   if (a >= 3 && b >= 3) st = LV.name + " · " + (a === b ? T.deuce : (a > b ? T.advYou : T.adv(oppName)));
   if (playing() && ["serve", "toss", "oppserve", "opptoss"].includes(ball.phase)) st += " · " + (serveNo === 2 ? T.serve2 : T.serve1);
@@ -392,6 +401,7 @@ function banner(t, hot) {
 
 function showOver() {
   if (careerMatch) { careerOver(); return; }
+  if (duoMatch || duoFinal) { duoMatchOver(); return; }
   $("againBtn").hidden = false; $("leaveBtn").textContent = T.backMenu;
   $("overList").hidden = true; $("againBtn").textContent = T.again;
   const won = score.win === myRole;
@@ -406,7 +416,7 @@ function publish(patch) { if (game) game.presence(patch).catch(() => {}); }
 const r3 = v => Math.round(v * 1000) / 1000;
 function roundShot(sh) {
   const o = { ...sh };
-  for (const k of ["x0", "xn", "bx", "bd", "s1", "s2", "ns"]) o[k] = r3(sh[k]);
+  for (const k of ["x0", "xn", "bx", "bd", "s1", "s2", "ns", "cv", "adj"]) if (typeof sh[k] === "number") o[k] = r3(sh[k]);
   return o;
 }
 /** Schlag des anderen Handys prüfen: nur bekannte Felder, Zahlen in vernünftigen Grenzen. */
@@ -420,6 +430,7 @@ function cleanShot(x) {
     res: one(x.res, ["in", "out", "net", "fault", "let"], "in"), why: one(x.why, ["wide", "long", "net", null], null),
     nc: !!x.nc, serve: one(x.serve, [0, 1, 2], 0), side: one(x.side, ["deuce", "ad"], "deuce"),
     sup: !!x.sup, ns: n(x.ns, 0.1, 6, LV.base), frame: !!x.frame, quality: String(x.quality || ""),
+    cv: n(x.cv, -0.3, 0.3, 0), adj: n(x.adj, -1, 1, 0),
   };
 }
 
@@ -435,13 +446,16 @@ function onPeers({ peers }) {
   if (opp.peer !== oppPeer) {
     oppPeer = opp.peer; lastHb = undefined;
     const theyHost = !!opp.presence.host;
-    myRole = host && !theyHost ? "A" : (!host && theyHost ? "B" : (me.peer < opp.peer ? "A" : "B"));
+    netRole = host && !theyHost ? "A" : (!host && theyHost ? "B" : (me.peer < opp.peer ? "A" : "B"));
+    if (mode !== "solo") myRole = netRole;               // im Computermatch des Turniers bleibt die Rolle A
   }
   // Herzschlag: jede Änderung des Zählers heisst «das andere Handy lebt»
   if (opp.presence.hb !== lastHb) { lastHb = opp.presence.hb; lastHeard = performance.now(); }
-  oppName = cleanName(opp.presence.name) || T.opponent;
-  oppLand = /^[A-Z]{2}$/.test(opp.presence.land || "") ? opp.presence.land : "NR";
-  if (typeof opp.presence.px === "number") oppX = clamp(1 - opp.presence.px, 0, 1);
+  if (!duoMatch) {                                     // während eines Computermatches heisst der Gegner anders
+    oppName = cleanName(opp.presence.name) || T.opponent;
+    oppLand = /^[A-Z]{2}$/.test(opp.presence.land || "") ? opp.presence.land : "NR";
+  }
+  if (mode === "play" && typeof opp.presence.px === "number") oppX = clamp(1 - opp.presence.px, 0, 1);
   oppTossT = typeof opp.presence.toss === "number" ? opp.presence.toss : -1;
   // wer das Spiel eröffnet (A), bestimmt die Stufe
   if (myRole === "B" && Number.isInteger(opp.presence.level) && opp.presence.level !== level) setLevel(opp.presence.level, false);
@@ -451,7 +465,9 @@ function onPeers({ peers }) {
   if (myRole === "B" && sc0 && sc0.seq === 0 && score.seq === 0 && (sc0.fs === "A" || sc0.fs === "B") && sc0.fs !== score.fs) {
     score = { ...score, fs: sc0.fs }; publish({ score });
   }
-  if (mode === "waiting") startMatch();
+  if (mode === "waiting") { if (host ? tourWanted : !!opp.presence.tour) startTourLobby(); else startMatch(); }
+  if (duo || opp.presence.tour) handleTourPresence(opp.presence);
+  if (mode !== "play") { renderBoard(); return; }      // Spielstand und Schläge nur im laufenden Match zu zweit
 
   const sc = opp.presence.score;
   if (validScore(sc)) {
@@ -483,7 +499,7 @@ function onPeers({ peers }) {
 
 // ---------- Verbindungswächter (läuft in Echtzeit, auch wenn das Spiel pausiert) ----------
 function netWatch() {
-  if (mode !== "play" && mode !== "waiting") return;
+  if (mode !== "play" && mode !== "waiting" && !duo) return;
   const now = performance.now(), elapsed = Math.min(now - (lastWatch || now), 2000);
   lastWatch = now;
   if (now - lastHbSent >= 900) { lastHbSent = now; publish({ hb: ++hbN }); }   // Herzschlag etwa jede Sekunde
@@ -548,7 +564,7 @@ function replayPoint() {
 
 /** Letztes Spiel zu zweit merken, damit es nach einem Neuladen mit demselben Code weitergeht. */
 function saveLastGame() {
-  if (mode !== "play" && mode !== "waiting") return;
+  if ((mode !== "play" && mode !== "waiting") || duo || tourWanted) return;   // Turniere zu zweit lassen sich nicht fortsetzen
   try { localStorage.setItem("nr-lastgame", JSON.stringify({ code: currentCode, host, score, level, at: Date.now() })); } catch (e) {}
 }
 function loadLastGame() {
@@ -592,7 +608,8 @@ async function enterRoom(code, asHost, saved) {
   shareLink = location.origin + location.pathname + "#" + code;
   showScreen("waiting");
   unsub.push(game.onPeers(onPeers, () => {}));
-  publish({ app: "nr", name: myName, land: profile.land, host: asHost, level, px: 0.5, score, shot: null, hb: 0, ep: 0, ask: "", rq: "" });
+  publish({ app: "nr", name: myName, land: profile.land, host: asHost, level, px: 0.5, score, shot: null, hb: 0, ep: 0, ask: "", rq: "",
+           tour: tourWanted && asHost, tourState: null, tres: null, live: null, cheer: "", fready: "" });
   saveLastGame();
 }
 
@@ -619,6 +636,168 @@ function beginWithIntro(event) {
     banner(T.start);
     resetForPoint();
   });
+}
+
+// ---------- Turnier zu zweit ----------
+/** Beide sind verbunden: Das eröffnende Handy legt das Turnierfeld an und schickt es. */
+function startTourLobby() {
+  mode = "tour"; matchStarted = false; myRole = netRole;
+  duoMe = host ? "H0" : "H1"; duoOther = { name: oppName, land: oppLand };
+  duoReady = false; duoClosed = false; duoNote = ""; duoLive = null;
+  if (host) {
+    const ranks = TO.validCareer(profile.career) ? TO.ranks(profile.career) : TO.ranks(TO.newCareer());
+    duo = DT.createDuoTour([{ id: "H0", name: myName || T.you, land: profile.land }, { id: "H1", name: oppName, land: oppLand }], ranks);
+    publish({ tourState: duo });
+  }
+  $("quit").hidden = true; inGame(true);
+  showScreen("duoBracket"); drawDuo();
+}
+
+/** Was das andere Handy im Turnier gemeldet hat. */
+function handleTourPresence(P) {
+  if (!host && P.tourState && DT.validDuo(P.tourState) && (!duo || P.tourState.id !== duo.id || P.tourState.rev > duo.rev)) {
+    const roundBefore = duo && duo.id === P.tourState.id ? duo.round : -1;
+    duo = JSON.parse(JSON.stringify(P.tourState));
+    if (duo.round !== roundBefore) duoReady = false;
+    if (mode === "waiting") startTourLobby();
+    duoChanged();
+  }
+  if (host && duo && P.tres && P.tres.tok !== lastTres) {
+    lastTres = P.tres.tok;
+    if (DT.report(duo, "H1", P.tres.r, P.tres.won)) hostAdvance();
+  }
+  if (JSON.stringify(P.live || null) !== JSON.stringify(duoLive)) { duoLive = P.live || null; duoChanged(); }
+  if (P.cheer && P.cheer !== lastCheer) {
+    const first = lastCheer === undefined && !duo;
+    lastCheer = P.cheer;
+    if (!first) { announce(T.duoCheered(duoOther ? duoOther.name : oppName), null, true); crowd.cheer(0.8); buzz(30); }
+  }
+  oppFready = P.fready || "";
+  if (duo && duoReady && !duoFinal && oppFready === duo.id + ":" + duo.round) startDuoFinal();
+}
+
+/** Das eröffnende Handy: Runde abschliessen, sobald alle gespielt haben, und den Stand verteilen. */
+function hostAdvance() {
+  const roundBefore = duo.round;
+  if (DT.roundComplete(duo)) DT.advance(duo);
+  duo.rev++;
+  if (duo.round !== roundBefore) duoReady = false;
+  publish({ tourState: JSON.parse(JSON.stringify(duo)) });
+  duoChanged();
+}
+
+function duoChanged() { if (currentScreen() === "duoBracket") drawDuo(); }
+
+function drawDuo() {
+  renderDuo(duo, {
+    me: duoMe, live: duoLive, ready: duoReady, closed: duoClosed, note: duoNote,
+    on: { play: startDuoMatch, ready: duoSetReady, cheer: duoSendCheer, close: duoCloseTour, leave },
+  });
+}
+
+/** Belag des Turniers für ein Match einstellen (gleich auf beiden Handys). */
+function applySurface(surface) {
+  const sf = B.surfaces[surface], base = B.levels[level];
+  LV = { ...base, base: base.base * sf.speed, max: base.max * sf.speed };
+  matchOpts = { netcordChance: B.netcord.chance * sf.netcord, spin: sf.spin };
+  surfaceCol = { court: sf.court, surround: sf.surround };
+}
+
+/** Dein Match gegen einen Computerspieler in dieser Runde. */
+function startDuoMatch() {
+  const m = DT.humanMatch(duo, duoMe);
+  if (!m || m.vsHuman) return;
+  audioInit(); goFullscreen();
+  applySurface(duo.surface);
+  const info = DT.who(duo, m.opp);
+  mode = "solo"; myRole = "A"; oppHere = true; oppName = info.name; oppLand = info.land;
+  ai = createAI(TO.opponentLevel(m.opp, m.round, LV)); oppX = 0.5;
+  duoMatch = { no: m.round, key: m.key, round: T.rounds[m.key], tName: T.duoTourName };
+  const late = m.key === "SF" || m.key === "F";
+  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B", late ? B.career.format.late : B.career.format.early);
+  marks = []; pending = []; ++resetTok;
+  publish({ live: { r: m.round, key: m.key, a: 0, b: 0, opp: info.name } });
+  showScreen(null); $("quit").hidden = false;
+  ball.phase = "none"; renderBoard();
+  beginWithIntro(T.duoTourName + " · " + duoMatch.round);
+}
+
+/** Final gegeneinander: beide bereit, dann ein normales Match zu zweit über die bestehende Verbindung. */
+function duoSetReady() {
+  duoReady = true;
+  publish({ fready: duo.id + ":" + duo.round });
+  drawDuo();
+  if (oppFready === duo.id + ":" + duo.round) startDuoFinal();
+}
+
+function startDuoFinal() {
+  if (duoFinal) return;
+  duoFinal = true; duoReady = false;
+  applySurface(duo.surface);
+  mode = "play"; myRole = netRole; oppName = duoOther.name; oppLand = duoOther.land; oppHere = true;
+  const fs = duo.id.charCodeAt(0) % 2 ? "A" : "B";                     // auf beiden Handys gleich
+  score = R.freshScore(1000 + duo.round * 10, fs, B.career.format.late);
+  handled = new Set(); paused = false; matchStarted = true; lastHeard = performance.now();
+  syncFromHost = false;                                   // beide starten mit demselben frischen Stand
+  publish({ score });
+  marks = []; pending = []; ++resetTok;
+  showScreen(null); $("quit").hidden = false;
+  ball.phase = "none"; renderBoard();
+  beginWithIntro(T.duoFinalEvent);
+}
+
+function duoMatchOver() {
+  const won = score.win === myRole;
+  if (duoMatch) {
+    const r = duoMatch.no;
+    publish({ live: { r, key: duoMatch.key, a: score.g[myRole], b: score.g[other(myRole)], opp: oppName, done: true, won } });
+    DT.report(duo, duoMe, r, won);                                        // gleich anzeigen …
+    if (host) hostAdvance(); else publish({ tres: { r, won, tok: token() } });   // … und dem eröffnenden Handy melden
+  } else {
+    DT.report(duo, duoMe, duo.round, won);
+    if (host) hostAdvance();
+  }
+  if (won) crowd.cheer(1); else crowd.applause(0.4);
+  const label = duoMatch ? duoMatch.round : T.rounds.F;
+  $("overList").hidden = true; $("againBtn").hidden = true;
+  $("overTitle").textContent = won ? T.matchWon : T.matchLost;
+  $("overText").textContent = (won ? T.matchWonText : T.matchLostText)(label, oppName);
+  $("leaveBtn").textContent = T.continueBtn;
+  duoReturn = true;
+  showScreen("over");
+}
+
+/** Nach einem Match zurück zum Turnierbaum, die Verbindung bleibt bestehen. */
+function backToTour() {
+  mode = "tour"; duoMatch = null; duoFinal = false; matchStarted = false; ai = null;
+  LV = B.levels[level]; matchOpts = {}; surfaceCol = null;
+  myRole = netRole; oppName = duoOther.name; oppLand = duoOther.land;
+  pending = []; ++resetTok; hawk = null; armed = false; marks = []; ball.phase = "idle";
+  if (activeIntro) activeIntro.close();
+  $("quit").hidden = true; inGame(true);
+  showScreen("duoBracket"); drawDuo(); renderBoard();
+}
+
+function duoSendCheer() {
+  publish({ cheer: token() });
+  banner(T.duoCheerSent);
+  sfx.arm();
+}
+
+/** Turnier fertig: Punkte in die eigene Karriere eintragen (wenn dort gerade kein Turnier läuft). */
+function duoCloseTour() {
+  if (!TO.validCareer(profile.career)) profile.career = TO.newCareer();
+  const pts = DT.pointsFor(duo, duoMe), won = duo.champion === duoMe;
+  const sum = TO.recordExternal(profile.career, pts, DT.resultKey(duo, duoMe), won);
+  if (sum) {
+    duoNote = T.duoRecorded(pts, sum.rankBefore, sum.rankAfter);
+    ON.queueCareer(profile, TO.totalPoints(profile.career, TO.USER), profile.career.stats.titles.length, profile.career.stats.bestRank);
+    syncOnline();
+  } else duoNote = T.duoNotRecorded;
+  saveProfile(profile);
+  duoClosed = true;
+  if (won) celebrate();
+  drawDuo();
 }
 
 // ---------- Karriere ----------
@@ -666,6 +845,8 @@ async function leave() {
   if (activeIntro) activeIntro.close();
   hawk = null; run = null; popups = []; fireworks = []; fwTimer = 0;
   careerMatch = null; matchStats = null; matchOpts = {}; surfaceCol = null; LV = B.levels[level];
+  duo = null; duoMatch = null; duoFinal = false; duoReturn = false; duoLive = null; duoReady = false; duoClosed = false; duoNote = "";
+  tourWanted = false; lastTres = undefined; lastCheer = undefined; oppFready = ""; duoOther = null;
   paused = false; matchStarted = false; $("netPause").hidden = true;
   try { localStorage.removeItem("nr-lastgame"); } catch (e) {}
   $("quit").hidden = true; showScreen("menu"); inGame(false);
@@ -694,6 +875,7 @@ $("joinBtn").onclick = () => {
 $("codeIn").addEventListener("keydown", e => { if (e.key === "Enter") $("joinBtn").click(); });
 $("cancelBtn").onclick = leave;
 $("leaveBtn").onclick = async () => {
+  if (duoReturn) { duoReturn = false; backToTour(); return; }
   const back = careerReturn;
   careerReturn = false;
   await leave();
@@ -701,7 +883,7 @@ $("leaveBtn").onclick = async () => {
 };
 $("quit").onclick = () => {
   if (mode === "machine") { if (run && !run.over) { pending = []; ++resetTok; endRun(); } else leave(); return; }
-  if (mode === "solo" && !careerMatch && (score.win || !score.seq)) { leave(); return; }
+  if (mode === "solo" && !careerMatch && !duoMatch && (score.win || !score.seq)) { leave(); return; }
   if (playing() && !score.win) { const s2 = { ...JSON.parse(JSON.stringify(score)), seq: score.seq + 1, win: other(myRole) }; applyScore(s2, true); }
 };
 $("againBtn").onclick = () => (mode === "machine" ? startMachine() : applyScore(R.freshScore(score.seq + 1, other(score.fs || "A")), true));
@@ -1082,8 +1264,9 @@ function autopilot(dt) {
 }
 /** Spielt sec Sekunden Spielzeit sofort durch (ohne Bildschirm), mit Autopilot. */
 function runFor(sec, dt = 1 / 60) { for (let t = 0; t < sec; t += dt) { if (paused) return; if (test.auto) autopilot(dt); step(dt); } }
-test.drop = sec => { netTest.dropUntil = performance.now() + sec * 1000; };   // WLAN kurz aus (nur Direktverbindung)
-window.__netzroller = { test, runFor, get state() { return { paused, epoch, mode, phase: ball.phase, score, serveNo, myRole, px, oppX, shot: ball.shot, hawk: hawk && { isIn: hawk.isIn, t: hawk.t }, run: run && { lives: run.lives, points: run.points, combo: run.combo, returns: run.returns, speed: run.speed, over: run.over } }; } };
+test.drop = sec => { netTest.dropUntil = performance.now() + sec * 1000; };
+test.supabase = (url, key) => { SUPABASE.url = url; SUPABASE.anonKey = key; };   // Weltrangliste gegen tools/mock-supabase.mjs testen   // WLAN kurz aus (nur Direktverbindung)
+window.__netzroller = { test, runFor, get state() { return { duo, duoMe, duoFinal, duoMatch, paused, epoch, mode, phase: ball.phase, score, serveNo, myRole, px, oppX, shot: ball.shot, hawk: hawk && { isIn: hawk.isIn, t: hawk.t }, run: run && { lives: run.lives, points: run.points, combo: run.combo, returns: run.returns, speed: run.speed, over: run.over } }; } };
 
 // ---------- Ballmaschine ----------
 function startMachine() {
@@ -1133,7 +1316,9 @@ function endRun() {
   run.over = true; ball.phase = "none";
   const entry = { name: myName || T.you, points: run.points, date: today(), kmh: MA.kmh(run.maxSpeed) };
   const rank = MA.addHighscore(profile.highscores, entry);
+  ON.queueScore(profile, run.points, entry.kmh);
   saveProfile(profile);
+  syncOnline();
   const record = rank === 0 && run.points > 0;
   $("overTitle").textContent = record ? T.newRecord : T.runOver;
   $("overText").textContent = T.runText(run.points, run.bestCombo, entry.kmh);
@@ -1208,14 +1393,35 @@ function drawPopups() {
 
 $("machineBtn").onclick = startMachine;
 $("netPauseLeave").onclick = leave;
-$("duoBtn").addEventListener("click", refreshResume);
+$("duoBtn").addEventListener("click", () => {
+  tourWanted = false;
+  $("duoTitle").textContent = T.duoTitle; $("duoHelp").hidden = true; $("hostBtn").textContent = T.host;
+  refreshResume();
+});
+$("duoTourBtn").onclick = () => {
+  tourWanted = true;
+  $("duoTitle").textContent = T.duoTourTitle; $("duoHelp").hidden = false; $("hostBtn").textContent = T.duoTourHost;
+  $("resumeBtn").hidden = true;
+  showScreen("duo");
+};
 $("resumeBtn").onclick = () => { const g = loadLastGame(); if (g) { audioInit(); goFullscreen(); enterRoom(g.code, g.host, g); } };
 
 // ---------- Einstellungen, Intro, Menü ----------
+// ---------- Weltrangliste ----------
+/** Offene Einträge im Hintergrund hochladen (gebündelt, Fehler stören das Spiel nie). */
+let syncT = 0;
+function syncOnline(delay = 500) {
+  clearTimeout(syncT);
+  syncT = setTimeout(() => { ON.sync(profile, () => saveProfile(profile)).catch(() => {}); }, delay);
+}
+if (ON.ensureIdentity(profile)) saveProfile(profile);
+syncOnline(3000);
+
 function applySettings(p) {
   setSound(p.settings.sound); setVoice(p.settings.voice); setVibration(p.settings.vibration);
   superBtn.classList.toggle("lefty", p.settings.lefty);
   myName = p.name;
+  syncOnline(2000);                                       // Name oder Land geändert: in der Weltrangliste nachführen
   $("noVoice").hidden = !p.settings.voice || hasVoice();
   renderBoard();
 }
@@ -1228,6 +1434,7 @@ initUI({ profile, onChange: applySettings, onIntro: runIntro });
 myRacketCol = racketColor(profile);
 initCareerUI({
   profile, save: () => saveProfile(profile), onPlay: startCareerMatch, onCelebrate: celebrate,
+  onClosed: c => { ON.queueCareer(profile, TO.totalPoints(c, TO.USER), c.stats.titles.length, c.stats.bestRank); saveProfile(profile); syncOnline(); },
   userName: () => myName || T.you, onRacket: () => { myRacketCol = racketColor(profile); },
 });
 applySettings(profile);

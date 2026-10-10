@@ -81,6 +81,10 @@ export const BALANCE = {
     height: 0.16,                               // Wurfhöhe (Darstellung)
   },
 
+  // Jeder Ball im Feld muss erreichbar sein: An der Schlägerlinie des Empfängers kommt er innerhalb dieses Bands an
+  // (Anteil der Breite). Wer weit laufen muss, bekommt dafür etwas mehr Zeit (lateral: Platzbreiten pro Sekunde).
+  reach: { band: [0.07, 0.93], lateral: 2.4 },
+
   flight: { arc: 0.10, arcSuper: 0.05, arcAfter: 0.06, afterBounce: 0.92 },
 
   keyboard: { start: 0.8, max: 2.8, accel: 6.0 },     // Platzbreiten/s, Beschleunigung pro s
@@ -168,6 +172,9 @@ export const BALANCE = {
       { id: "white",   color: "#f4f7f2", titles: 3 },
     ],
   },
+
+  // Turnier zu zweit: Feld, Kategorie (für die Ranglistenpunkte), mögliche Beläge, Computerspieler aus diesem Ranglistenbereich
+  duoTour: { size: 16, cat: "250", surfaces: ["hard", "clay", "indoor", "grass"], pool: [17, 64] },
 
   match: { gamesToWin: 3 },
   timing: { pointPause: 0.9, faultPause: 0.8, holdMax: 1.2, aiServeDelay: [0.6, 1.0] },

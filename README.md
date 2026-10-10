@@ -12,9 +12,9 @@ Beim ersten Start am Tag läuft ein kurzes Intro im Stadion (antippen übersprin
 - **Zu zweit:** zwei Handys, ein Code (siehe unten).
 - **Einstellungen:** Name und Land (für die Flagge), Ton, Schiedsrichter-Stimme, Vibration, Linkshänder (Super-Knopf links), Super-Schlag per Wischen, Intro beim Start. Mit **Profil mitnehmen** bekommst du einen Code, den du auf einem anderen Gerät wieder einfügst.
 - **Ballmaschine:** Endlos-Modus mit Highscore (siehe unten).
-- **Rangliste:** deine Top 10 gegen die Ballmaschine auf diesem Gerät.
+- **Rangliste:** deine Top 10 gegen die Ballmaschine auf diesem Gerät und die **Weltrangliste** (siehe unten).
 - **Karriere:** Turniere gegen den Computer und eine Tour-Rangliste (siehe unten).
-- Turnier zu zweit kommt später dazu.
+- **Turnier zu zweit:** gemeinsam ins selbe Turnier, Final gegeneinander (siehe unten).
 
 Vor jedem Match stellt ein kurzes Intro beide Spieler mit Flagge vor, eine Münze entscheidet, wer zuerst aufschlägt.
 
@@ -50,6 +50,7 @@ Du kannst mit zwei Fingern spielen: Ein Finger liegt auf «Super», der andere s
   - Aussen: scharfer Winkel Richtung Seitenlinie. Ganz aussen geht er ins Aus.
   - Rahmen (der äusserste Rand): Der Ball fliegt unkontrolliert ins Netz, ins Aus oder langsam ins Feld.
 - Mit jedem Schlag wird der Ball etwas schneller.
+- **Jeder Ball im Feld ist erreichbar.** Ein schneller, breiter Ball kommt ganz aussen an und ist schwierig, aber dein Schläger kommt immer hin. Je weiter du laufen musst, desto mehr Zeit bleibt dir dafür.
 - **Netzroller:** Ab und zu streift ein Ball die Netzkante. Er wird langsamer und fällt kurz hinter das Netz.
 
 ### Aufschlag
@@ -115,6 +116,40 @@ Du trittst gegen 63 erfundene Spielerinnen und Spieler an und startest auf **Ran
 - Für Masters und Grand Slam brauchst du Rang 32 oder besser, sonst die eine **Wildcard** pro Saison.
 - Jeder Turniersieg kommt mit Siegerehrung in die **Vitrine**. Dort stehen auch deine Statistik und neue **Schlägerfarben**, die du dir mit Siegen, Titeln und einer guten Rangierung verdienst.
 
+## Turnier zu zweit
+
+Zwei Handys spielen gemeinsam ein Turnier mit 16 Spielern (Kategorie 250, Belag zufällig).
+
+1. Handy 1 tippt im Menü auf **Turnier zu zweit** und dann auf **Turnier eröffnen**. Es bekommt einen Code.
+2. Handy 2 tippt auf **Zu zweit**, gibt den Code ein und tippt auf **Los**.
+3. Ihr landet in verschiedenen Hälften des Turnierbaums. In jeder Runde spielt jeder **gleichzeitig auf seinem Handy gegen seinen Computergegner**. Der Turnierbaum wartet, bis beide fertig sind, und zeigt den Spielstand des anderen live.
+4. Erreicht ihr beide den Final, tippt jeder auf **Bereit**, und ihr spielt **gegeneinander**.
+5. Wer ausscheidet, schaut weiter zu und kann den anderen **anfeuern**: Beim anderen erscheint ein Banner und das Publikum jubelt.
+6. Zum Schluss trägt **Turnier abschliessen** dein Ergebnis in deine eigene Karriere ein (Ranglistenpunkte wie bei einem 250er-Turnier). Läuft in deiner Karriere gerade ein Turnier, zählt das Turnier zu zweit nicht für die Rangliste.
+
+## Weltrangliste
+
+Unter **Rangliste → Weltrangliste** siehst du alle Netzroller-Spieler, die mitmachen, zum Beispiel Familie und Freunde: sortiert nach **Karriere** (Ranglistenpunkte, Titel, beste Rangierung) oder nach **Ballmaschine** (bester Durchgang, Höchsttempo).
+
+- Gezeigt werden nur dein selbst gewählter **Name** und dein **Land**. Es gibt kein Konto, keine E-Mail-Adresse und kein Tracking.
+- In den Einstellungen kannst du die Teilnahme abschalten.
+- Ohne Internet läuft alles lokal weiter. Ergebnisse, die nicht ankommen, werden später nachgeschickt.
+- Damit die Weltrangliste funktioniert, muss sie einmal eingerichtet werden (nächster Abschnitt).
+
+## Weltrangliste einrichten (einmalig, ca. 15 Minuten)
+
+Die Weltrangliste speichert ihre Daten bei [Supabase](https://supabase.com) (kostenloser Tarif reicht).
+
+1. **Projekt anlegen:** Bei Supabase anmelden, **New project** wählen. Name zum Beispiel «netzroller», als Region eine in Europa (zum Beispiel Frankfurt). Das Datenbank-Passwort sicher aufbewahren; das Spiel braucht es nicht.
+2. **Datenbank einrichten:** Im Projekt links **SQL Editor** öffnen, **New query**, den ganzen Inhalt von [`docs/supabase.sql`](docs/supabase.sql) einfügen und **Run** drücken. Es sollte «Success» erscheinen. Das Skript legt die Tabellen `players`, `scores` und `career` an, schaltet die Schutzregeln (Row Level Security) ein und erstellt die Funktionen zum Eintragen.
+3. **Zugangsdaten holen:** Unter **Project Settings → API** (je nach Ansicht auch **Data API** und **API Keys**) die **Project URL** und den öffentlichen Schlüssel kopieren: **anon public** oder **publishable**.
+4. **Eintragen:** Beide Werte in [`js/config.js`](js/config.js) bei `SUPABASE` eintragen und auf GitHub hochladen. Oder du schickst mir die zwei Werte, dann trage ich sie ein.
+5. **Testen:** Spiel öffnen, in den Einstellungen einen Namen setzen, eine Runde Ballmaschine spielen, dann **Rangliste → Weltrangliste** öffnen.
+
+**Sicherheit:** Der öffentliche Schlüssel darf im Code stehen; die Schutzregeln liegen in der Datenbank. Lesen dürfen alle, schreiben geht nur über geprüfte Funktionen und nur mit dem geheimen Schlüssel, den jedes Profil beim ersten Start bekommt (gespeichert wird nur dessen Prüfsumme). Dazu kommen Höchstwerte und höchstens ein Eintrag pro Minute. Den **service_role**- bzw. **secret**-Schlüssel nie ins Spiel eintragen.
+
+Den geheimen Profil-Schlüssel nimmst du mit **Einstellungen → Profil mitnehmen** auf ein anderes Gerät mit; so bleibt es derselbe Eintrag in der Weltrangliste.
+
 ## Technik
 
 - Statische Website ohne Build-Schritt: [`index.html`](index.html) und die Module unter [`js/`](js). Alle Zahlenwerte stehen in [`js/balance.js`](js/balance.js), alle Texte in [`js/texts.js`](js/texts.js).
@@ -123,7 +158,9 @@ Du trittst gegen 63 erfundene Spielerinnen und Spieler an und startest auf **Ran
 - Jeder Schlag wird als kleiner Datensatz verschickt (Startpunkt, Aufsprungpunkt, Tempo, Aus/Netz, Netzroller). Beide Handys berechnen daraus denselben Flug. Den Punkt vergibt das Handy, das den Ball bekommt.
 - In manchen Netzen (z. B. Firmen-WLAN oder einige Mobilfunkanbieter) lässt sich keine direkte Verbindung aufbauen. Dann hilft es, ins selbe WLAN zu wechseln.
 - Läuft die Seite als Artifact auf claude.ai, nutzt sie dort stattdessen den Live-Raum von claude.ai.
-- Profil und Einstellungen merkt sich der Browser lokal (`localStorage`). Es gibt kein Konto und kein Tracking.
+- Profil, Einstellungen, Highscores und Karriere merkt sich der Browser lokal (`localStorage`). Es gibt kein Konto und kein Tracking.
+- Die Weltrangliste spricht die Supabase-REST-Schnittstelle direkt an (ohne zusätzliche Bibliothek). Datenbank-Skript: [`docs/supabase.sql`](docs/supabase.sql).
+- Beim Turnier zu zweit führt das eröffnende Handy den Turnierstand und schickt ihn als Ganzes; das andere zeigt ihn an und meldet seine Ergebnisse zurück. Der Code ist für bis zu 4 Spieler vorbereitet (je ein Viertel des Felds).
 - Intro, Töne, Publikum, Flaggen und Stimme werden im Browser erzeugt (Canvas, Web Audio, Web Speech). Es werden keine Bilder, Videos oder Tondateien geladen.
 
 ## Verbindung in schwierigen Netzen (optional)
@@ -151,3 +188,13 @@ Die Balance lässt sich ohne Browser prüfen. Der Befehl lässt den Computer 500
 ```bash
 node tools/simulate.mjs 500
 ```
+
+Weitere Simulationen: `node tools/simulate.mjs machine 300` (Dauer eines Ballmaschinen-Durchgangs) und `node tools/simulate.mjs tour 200` (Aufstieg in der Karriere).
+
+Die Weltrangliste lässt sich ohne Supabase mit einem nachgebauten Server testen:
+
+```bash
+node tools/mock-supabase.mjs 8766
+```
+
+Dann in der Konsole des Spiels: `__netzroller.test.supabase("http://localhost:8766", "test-anon-key")`.

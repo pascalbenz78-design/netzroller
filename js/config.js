@@ -20,3 +20,12 @@ export const STUN = [
 ];
 
 export const TURN = [];
+
+// Weltrangliste (Supabase). Anleitung: README, Abschnitt «Weltrangliste einrichten».
+// Project URL und «anon public» Key aus Supabase → Project Settings → API hier eintragen.
+// Der anon Key darf öffentlich sein: Die Schutzregeln liegen in der Datenbank (docs/supabase.sql).
+// Leer lassen = keine Weltrangliste, alles läuft lokal.
+export const SUPABASE = {
+  url: "",       // z. B. "https://abcdefghijkl.supabase.co"
+  anonKey: "",   // beginnt meist mit "eyJ…" oder "sb_publishable_…"
+};

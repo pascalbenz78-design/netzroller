@@ -5,9 +5,10 @@ import { T } from "./texts.js";
 import { COUNTRIES, paintFlag, drawFlag, countryName } from "./flags.js";
 import { exportCode, importCode, saveProfile } from "./storage.js";
 import { hasVoice } from "./voice.js";
+import * as ON from "./online.js";
 
 const $ = id => document.getElementById(id);
-const SCREENS = ["menu", "duo", "settings", "ranking", "career", "bracket", "tourRank", "cabinet", "ceremony", "waiting", "over"];
+const SCREENS = ["menu", "duo", "settings", "ranking", "career", "bracket", "tourRank", "cabinet", "ceremony", "duoBracket", "waiting", "over"];
 
 /** Zeigt genau eine Menü-Seite (oder keine, mit null). */
 export function showScreen(id) {
@@ -31,7 +32,12 @@ export function initUI({ profile, onChange, onIntro }) {
   $("duoBtn").onclick = () => showScreen("duo");
   $("settingsBtn").onclick = () => { fillSettings(profile); showScreen("settings"); };
   $("duoBack").onclick = () => showScreen("menu");
-  $("rankBtn").onclick = () => { renderHighscores($("rankList"), profile.highscores); $("rankEmpty").hidden = profile.highscores.length > 0; showScreen("ranking"); };
+  $("rankBtn").onclick = () => { showRanking(profile, "local"); showScreen("ranking"); };
+  $("rankTabLocal").onclick = () => showRanking(profile, "local");
+  $("rankTabWorld").onclick = () => showRanking(profile, "world");
+  $("worldByCareer").onclick = () => showRanking(profile, "world", "career");
+  $("worldByMachine").onclick = () => showRanking(profile, "world", "machine");
+  rankingSave = save;
   $("rankBack").onclick = () => showScreen("menu");
   $("settingsBack").onclick = () => showScreen("menu");
   $("introBtn").onclick = () => onIntro();
@@ -42,6 +48,7 @@ export function initUI({ profile, onChange, onIntro }) {
   sel.addEventListener("change", () => { profile.land = sel.value; save(); });
 
   // Schalter
+  $("setOnline").addEventListener("change", () => { ON.ensureIdentity(profile); profile.online.join = $("setOnline").checked; save(); });
   const toggles = { setSound: "sound", setVoice: "voice", setVibration: "vibration", setLefty: "lefty", setSwipe: "swipe", setIntro: "intro" };
   Object.entries(toggles).forEach(([id, key]) => $(id).addEventListener("change", () => { profile.settings[key] = $(id).checked; save(); fillSettings(profile); }));
 
@@ -69,6 +76,8 @@ function fillSettings(p) {
   $("setSound").checked = p.settings.sound; $("setVoice").checked = p.settings.voice;
   $("setVibration").checked = p.settings.vibration; $("setLefty").checked = p.settings.lefty;
   $("setSwipe").checked = p.settings.swipe; $("setIntro").checked = p.settings.intro;
+  $("setOnline").checked = !p.online || p.online.join !== false;
+  $("setOnlineRow").hidden = !ON.onlineConfigured();
   $("exportRow").hidden = true; $("settingsMsg").hidden = true;
   $("noVoice").hidden = !p.settings.voice || hasVoice();   // Stimmen lädt der Browser erst nach dem Start
 }
@@ -81,6 +90,65 @@ export function refreshProfileUI(p) {
 }
 
 // ---------- Rangliste ----------
+let rankingSave = () => {}, worldBy = "career", worldReq = 0;
+
+/** Rangliste: «Auf diesem Gerät» (Ballmaschine Top 10) oder «Weltrangliste» (online). */
+export function showRanking(profile, tab, by) {
+  if (by) worldBy = by;
+  const world = tab === "world";
+  $("rankTabLocal").setAttribute("aria-pressed", String(!world));
+  $("rankTabWorld").setAttribute("aria-pressed", String(world));
+  $("rankLocalBox").hidden = world; $("rankWorldBox").hidden = !world;
+  if (!world) {
+    renderHighscores($("rankList"), profile.highscores);
+    $("rankEmpty").hidden = profile.highscores.length > 0;
+    return;
+  }
+  $("worldByCareer").setAttribute("aria-pressed", String(worldBy === "career"));
+  $("worldByMachine").setAttribute("aria-pressed", String(worldBy === "machine"));
+  const list = $("worldList"), note = $("worldNote");
+  list.textContent = "";
+  if (!ON.onlineConfigured()) { note.textContent = T.worldOff; return; }
+  note.textContent = T.worldLoading;
+  const req = ++worldReq;
+  ON.ensureIdentity(profile);
+  ON.sync(profile, () => { saveProfile(profile); rankingSave(); })
+    .then(() => ON.loadWorld(worldBy))
+    .then(rows => { if (req === worldReq) renderWorld(profile, rows || []); })
+    .catch(() => { if (req === worldReq) note.textContent = T.worldError; });
+}
+
+function renderWorld(profile, rows) {
+  const list = $("worldList"), note = $("worldNote"), me = profile.online && profile.online.id;
+  list.textContent = "";
+  const hints = [];
+  if (!rows.length) hints.push(T.worldEmpty);
+  if (profile.online && profile.online.join === false) hints.push(T.worldOptOut);
+  else if (!profile.name) hints.push(T.worldNoName);
+  const waiting = (profile.online?.pendingScores?.length || 0) + (profile.online?.pendingCareer ? 1 : 0);
+  if (waiting) hints.push(T.worldPending(waiting));
+  note.textContent = hints.join(" ");
+  rows.forEach((r, i) => {
+    const li = document.createElement("li");
+    if (r.id === me) li.className = "mine";
+    const rank = document.createElement("span"); rank.className = "hs-rank"; rank.textContent = String(i + 1);
+    const name = document.createElement("span"); name.className = "hs-name";
+    const fl = document.createElement("canvas"); fl.className = "flag sm";
+    name.append(fl, document.createTextNode(" " + r.name));
+    requestAnimationFrame(() => paintFlag(fl, r.land));
+    const pts = document.createElement("span"); pts.className = "hs-pts";
+    const meta = document.createElement("span"); meta.className = "hs-meta";
+    if (worldBy === "machine") {
+      pts.textContent = T.rankPoints(r.machine_best ?? 0);
+      meta.textContent = T.rankKmh(r.machine_speed ?? 0) + " · " + countryName(r.land);
+    } else {
+      pts.textContent = T.rankPoints(r.ranking_points ?? 0);
+      meta.textContent = T.worldTitles(r.titles ?? 0) + (r.best_rank ? " · " + T.worldBest(r.best_rank) : "") + " · " + countryName(r.land);
+    }
+    li.append(rank, name, pts, meta);
+    list.appendChild(li);
+  });
+}
 /** Schreibt die Top 10 in eine <ol>. Der Eintrag `mark` (gerade gespielt) wird hervorgehoben. */
 export function renderHighscores(ol, list, mark) {
   ol.textContent = "";

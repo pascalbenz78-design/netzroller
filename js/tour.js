@@ -265,19 +265,21 @@ export function pointsFor(cur, idx) {
 /** Ergebnis eintragen (rollende Wertung), nächstes Turnier vorbereiten. Gibt eine Zusammenfassung zurück. */
 export function closeTournament(c, track = true) {
   const cur = c.current;
-  const before = ranks(c);
+  const before = ranks(c), ext = cur.external;
   for (let i = 0; i < 64; i++) {
-    c.results[i].push(pointsFor(cur, i));
+    c.results[i].push(i === USER && ext ? ext.points : pointsFor(cur, i));
     if (c.results[i].length > K.rolling) c.results[i].shift();
   }
-  const summary = { ti: cur.ti, season: c.season, champion: cur.champion, userIn: cur.userIn, userPoints: pointsFor(cur, USER), userWon: cur.champion === USER };
+  const summary = ext
+    ? { ti: cur.ti, season: c.season, champion: cur.champion, userIn: true, userPoints: ext.points, userWon: ext.won, duo: true }
+    : { ti: cur.ti, season: c.season, champion: cur.champion, userIn: cur.userIn, userPoints: pointsFor(cur, USER), userWon: cur.champion === USER };
   if (track) {
     c.prevRanks = before;
     const after = ranks(c)[USER];
     summary.rankBefore = before[USER]; summary.rankAfter = after;
     c.stats.bestRank = Math.min(c.stats.bestRank, after);
-    if (summary.userWon) c.stats.titles.push({ ti: cur.ti, season: c.season });
-    c.history.push({ season: c.season, ti: cur.ti, points: summary.userPoints, result: userResultKey(cur) });
+    if (summary.userWon) c.stats.titles.push(ext ? { ti: cur.ti, season: c.season, duo: true } : { ti: cur.ti, season: c.season });
+    c.history.push({ season: c.season, ti: cur.ti, points: summary.userPoints, result: ext ? ext.result : userResultKey(cur), duo: !!ext });
     if (c.history.length > 40) c.history.shift();
   }
   c.current = null;
@@ -292,6 +294,19 @@ export function userResultKey(cur) {
   if (cur.champion === USER) return "W";
   if (cur.cat === "final") return cur.final && cur.final.includes(USER) ? "F" : cur.semis && cur.semis.flat().includes(USER) ? "SF" : "G";
   return roundKey(cur.size, cur.lost[USER]);
+}
+
+/**
+ * Ergebnis eines Turniers zu zweit in die eigene Karriere eintragen: Es ersetzt deinen nächsten
+ * Turnierplatz der Saison (die Computerspieler spielen ihn ohne dich). Geht nur, wenn gerade kein
+ * Karriere-Turnier läuft. Gibt die Zusammenfassung zurück oder null.
+ */
+export function recordExternal(c, points, result, won, rand = Math.random) {
+  if (c.current) return null;
+  startTournament(c, c.ti, false, rand);
+  simulateRest(c, rand);
+  c.current.external = { points, result, won };
+  return closeTournament(c, true);
 }
 
 // ---------- Computergegner aus Rating und Stil ----------

@@ -173,6 +173,7 @@ function close() {
   const c = career(), colorsBefore = TO.unlockedColors(c).map(x => x.id);
   const s = TO.closeTournament(c, true);
   ctx.save();
+  if (ctx.onClosed) ctx.onClosed(c);
   const fresh = TO.unlockedColors(c).filter(x => !colorsBefore.includes(x.id)).map(x => T.colorNames[x.id]);
   const note = (s.userIn ? T.summary(s.userPoints, s.rankBefore, s.rankAfter) : "") + (fresh.length ? " · " + T.newColor(fresh.join(", ")) : "");
   if (s.userWon) {

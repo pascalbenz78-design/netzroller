@@ -269,6 +269,13 @@ button.swatch[aria-pressed="true"] { outline: 2px solid var(--ball); }
 button.swatch:disabled { opacity: .5; }
 .cer { align-items: center; text-align: center; }
 #cerTrophy svg { display: block; }
+
+/* ---------- Phase 6: Weltrangliste, Turnier zu zweit ---------- */
+.mb.other { border-color: var(--super); }
+.seg.two { grid-template-columns: 1fr 1fr; }
+#rankLocalBox, #rankWorldBox { display: flex; flex-direction: column; gap: 10px; }
+ol.hs.world { max-height: 50vh; overflow-y: auto; touch-action: pan-y; }
+ol.hs .hs-name canvas.flag.sm { display: inline-block; vertical-align: -2px; }
 </style>
 </head>
 <body>
@@ -320,7 +327,7 @@ button.swatch:disabled { opacity: .5; }
           <button class="mode" id="duoBtn"><span data-t="modeDuo">Zu zweit</span><small data-t="modeDuoSub">Zwei Handys, ein Code</small></button>
           <button class="mode" id="machineBtn"><span data-t="modeMachine">Ballmaschine</span><small data-t="modeMachineSub">Endlos, mit Highscore</small></button>
           <button class="mode" id="careerBtn"><span data-t="modeCareer">Karriere</span><small data-t="modeCareerSub">Tour mit 63 Gegnern</small></button>
-          <button class="mode" disabled><span data-t="modeDuoTour">Turnier zu zweit</span><small data-t="soon">bald</small></button>
+          <button class="mode" id="duoTourBtn"><span data-t="modeDuoTour">Turnier zu zweit</span><small data-t="modeDuoTourSub">Gemeinsam im selben Turnier</small></button>
           <button class="mode" id="rankBtn"><span data-t="modeRanking">Rangliste</span><small data-t="modeRankingSub">Deine Top 10</small></button>
         </div>
         <div class="row2">
@@ -336,7 +343,8 @@ button.swatch:disabled { opacity: .5; }
     <!-- Zu zweit -->
     <div class="sheet" id="duo" hidden>
       <div class="card">
-        <div class="big" data-t="duoTitle">Zu zweit</div>
+        <div class="big" id="duoTitle" data-t="duoTitle">Zu zweit</div>
+        <p class="small" id="duoHelp" hidden data-t="duoTourHelp"></p>
         <button id="resumeBtn" hidden>Spiel fortsetzen</button>
         <button id="hostBtn" disabled data-t="host">Spiel eröffnen</button>
         <div class="or" data-t="orJoin">oder beitreten</div>
@@ -370,6 +378,7 @@ button.swatch:disabled { opacity: .5; }
           <label class="switch"><input type="checkbox" id="setLefty"><span data-t="setLefty">Linkshänder</span></label>
           <label class="switch"><input type="checkbox" id="setSwipe"><span data-t="setSwipe">Super-Schlag per Wischen</span></label>
           <label class="switch"><input type="checkbox" id="setIntro"><span data-t="setIntro">Intro beim Start</span></label>
+          <label class="switch" id="setOnlineRow"><input type="checkbox" id="setOnline"><span data-t="setOnline">In der Weltrangliste erscheinen</span></label>
         </div>
         <button class="ghost" id="introBtn2" data-t="introWatch">Intro ansehen</button>
         <span class="label" data-t="transfer">Profil mitnehmen</span>
@@ -422,6 +431,16 @@ button.swatch:disabled { opacity: .5; }
       </div>
     </div>
 
+    <!-- Turnier zu zweit -->
+    <div class="sheet" id="duoBracket" hidden>
+      <div class="card wide">
+        <div class="big" id="dtTitle"></div>
+        <p class="small" id="dtMeta" style="text-align:center"></p>
+        <div class="brk" id="dtBody"></div>
+        <div class="br-action" id="dtAction"></div>
+      </div>
+    </div>
+
     <!-- Karriere: Tour-Rangliste -->
     <div class="sheet" id="tourRank" hidden>
       <div class="card">
@@ -461,10 +480,23 @@ button.swatch:disabled { opacity: .5; }
     <div class="sheet" id="ranking" hidden>
       <div class="card">
         <div class="big" data-t="ranking">Rangliste</div>
-        <p class="small" data-t="rankingSub">Ballmaschine · deine Top 10 auf diesem Gerät</p>
-        <ol class="hs" id="rankList"></ol>
-        <p class="small" id="rankEmpty" data-t="rankingEmpty"></p>
-        <p class="small" data-t="rankingWorld"></p>
+        <div class="seg two" role="group">
+          <button type="button" id="rankTabLocal" aria-pressed="true" data-t="rankLocal">Auf diesem Gerät</button>
+          <button type="button" id="rankTabWorld" aria-pressed="false" data-t="rankWorld">Weltrangliste</button>
+        </div>
+        <div id="rankLocalBox">
+          <p class="small" data-t="rankingSub">Ballmaschine · deine Top 10 auf diesem Gerät</p>
+          <ol class="hs" id="rankList"></ol>
+          <p class="small" id="rankEmpty" data-t="rankingEmpty"></p>
+        </div>
+        <div id="rankWorldBox" hidden>
+          <div class="seg two" role="group">
+            <button type="button" id="worldByCareer" aria-pressed="true" data-t="worldCareer">Karriere</button>
+            <button type="button" id="worldByMachine" aria-pressed="false" data-t="worldMachine">Ballmaschine</button>
+          </div>
+          <p class="small" id="worldNote" role="status"></p>
+          <ol class="hs world" id="worldList"></ol>
+        </div>
         <button id="rankBack" data-t="back">Zurück</button>
       </div>
     </div>
