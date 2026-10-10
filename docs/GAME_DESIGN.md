@@ -390,6 +390,7 @@ Laufend nachgeführt. Jeder Eintrag: was entschieden wurde und warum.
 90. **Weltrangliste:** Hochgeladen werden jetzt Stufe, Ranglistenpunkte in der Stufe, Titel und der aktuelle Rang in der Stufe. Sortiert wird zuerst nach Stufe, dann nach Punkten: Wer in Europa spielt, steht vor allen im Aargau. Das Datenbank-Skript wurde entsprechend angepasst (noch nicht eingerichtet, deshalb ohne Übernahme alter Daten).
 
 91. **Ass beim perfekten Aufschlag** (Rückmeldung von Pascal): Trifft der erste Aufschlag den höchsten Punkt besonders genau (Abweichung höchstens 0,05, `serve.ace`), entfällt die Lenkung in Reichweite. Ist er dazu ganz breit gezielt, kann er unerreichbar sein (bei rund 4 % dieser Aufschläge). Alle anderen Aufschläge und Schläge bleiben erreichbar.
+92. **Supabase eingerichtet:** Projekt «netzroller» (Gratis-Plan, Region Zürich, eu-central-2) mit dem Skript `docs/supabase.sql`. Im Spiel steht der öffentliche «publishable» Schlüssel; der geheime Schlüssel kommt nie ins Spiel. Die Schreib-Funktionen darf nur die Rolle `anon` aufrufen. Der Sicherheitsberater von Supabase warnt, dass diese SECURITY-DEFINER-Funktionen öffentlich aufrufbar sind: Das ist gewollt, jede Funktion prüft den Schlüssel des Profils. Die Registrierung wird pro Datenbank-Adresse gemerkt, damit ein Wechsel (Test-Server → Supabase) neu einträgt.
 
 ---
 

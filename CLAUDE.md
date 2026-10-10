@@ -42,7 +42,7 @@ Tennisspiel für den Browser (Draufsicht), zwei Handys gegeneinander oder allein
 | `js/flags.js` | gezeichnete Flaggen und Länderliste |
 | `js/voice.js` | Schiedsrichter-Stimme (Web Speech API) |
 | `js/net.js` | Verbindung: Live-Raum von claude.ai oder PeerJS, Neuverbinden |
-| `js/config.js` | STUN-Server und optionaler TURN-Server |
+| `js/config.js` | STUN/TURN-Server, Adresse und öffentlicher Schlüssel der Weltrangliste |
 | `js/audio.js` | Töne, Publikum (Web Audio) und Vibration |
 | `js/texts.js` | alle Texte |
 | `tools/simulate.mjs` | Balance-Simulation Computer gegen Computer |
@@ -88,7 +88,7 @@ Für zwei Spieler: zwei Tabs, einer eröffnet, einer tritt mit dem Code bei, in 
 | 3 | Ballmaschine (Endlos-Modus, Highscore) | abgenommen |
 | 4 | Stabile Verbindung (Herzschlag, Pause, Wiederverbinden) | abgenommen |
 | 5 | Karriere (Tour, Turniere, Rangliste) | abgenommen |
-| 6 | Turnier zu zweit, Weltrangliste mit Supabase | fertig, wartet auf Einrichtung von Supabase |
+| 6 | Turnier zu zweit, Weltrangliste mit Supabase | **fertig, wartet auf Abnahme** (Supabase eingerichtet) |
 | 7 | Karriere in Stufen (Aargau → Schweiz → Europa → Welt), zwei Gewinnsätze | **fertig, wartet auf Abnahme** |
 
 ### Phase 1 im Detail
@@ -161,7 +161,9 @@ Erledigt:
 - Fix auf Rückmeldung: Jeder Ball im Feld ist erreichbar (Lenkung nach dem Aufsprung, mehr Zeit für weite Wege).
 - Getestet: ganzes Turnier zu zweit über zwei Tabs bis zum Final gegeneinander und zum Abschluss; Weltrangliste gegen den nachgebauten Server mit zwei Geräten, Sperrfrist und Nachsenden; Erreichbarkeit mit 18 500 Aufschlägen pro Stufe; Schnelles Spiel weiterhin fehlerfrei.
 
-Offen: Supabase-Projekt einrichten (Pascal, Anleitung in der README) und danach die Weltrangliste auf zwei echten Geräten prüfen.
+Supabase eingerichtet (Projekt «netzroller», Region Zürich, Adresse und öffentlicher Schlüssel in `js/config.js`). Getestet gegen die echte Datenbank: Lesen erlaubt, Prüfsummen nicht lesbar, direktes Schreiben gesperrt; zwei Geräte (localhost und 127.0.0.1) mit Karriere und Ballmaschine erscheinen in beiden Ansichten der Weltrangliste.
+
+Offen: Test auf zwei echten Handys.
 
 ### Phase 7 im Detail (Wunsch von Pascal nach Phase 6)
 

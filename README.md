@@ -138,6 +138,8 @@ Unter **Rangliste → Weltrangliste** siehst du alle Netzroller-Spieler, die mit
 
 Die Weltrangliste speichert ihre Daten bei [Supabase](https://supabase.com) (kostenloser Tarif reicht).
 
+**Für dieses Spiel ist das bereits erledigt** (Projekt «netzroller», Region Zürich). Die Schritte unten braucht nur, wer eine eigene Kopie mit eigener Weltrangliste betreiben will. Hinweis: Ein Supabase-Projekt im Gratis-Tarif wird nach etwa einer Woche ohne Zugriffe pausiert und lässt sich im Dashboard mit einem Klick wieder starten.
+
 1. **Projekt anlegen:** Bei Supabase anmelden, **New project** wählen. Name zum Beispiel «netzroller», als Region eine in Europa (zum Beispiel Frankfurt). Das Datenbank-Passwort sicher aufbewahren; das Spiel braucht es nicht.
 2. **Datenbank einrichten:** Im Projekt links **SQL Editor** öffnen, **New query**, den ganzen Inhalt von [`docs/supabase.sql`](docs/supabase.sql) einfügen und **Run** drücken. Es sollte «Success» erscheinen. Das Skript legt die Tabellen `players`, `scores` und `career` an, schaltet die Schutzregeln (Row Level Security) ein und erstellt die Funktionen zum Eintragen.
 3. **Zugangsdaten holen:** Unter **Project Settings → API** (je nach Ansicht auch **Data API** und **API Keys**) die **Project URL** und den öffentlichen Schlüssel kopieren: **anon public** oder **publishable**.

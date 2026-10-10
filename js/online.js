@@ -52,6 +52,8 @@ async function call(path, { method = "GET", body } = {}) {
 }
 const rpc = (fn, args) => call("/rest/v1/rpc/" + fn, { method: "POST", body: args });
 
+// Registrierung gilt pro Datenbank: Wechselt die Adresse (z. B. vom Test-Server zu Supabase), wird neu eingetragen.
+const regMark = profile => SUPABASE.url + "|" + profile.name + "|" + profile.land;
 const canSend = profile => onlineConfigured() && profile.online && profile.online.join && profile.name;
 
 /** Name und Land eintragen bzw. aktualisieren. */
@@ -59,7 +61,7 @@ export async function register(profile) {
   if (!canSend(profile)) return false;
   const o = profile.online;
   await rpc("nr_register", { p_id: o.id, p_key: o.key, p_name: profile.name, p_land: profile.land });
-  o.registered = profile.name + "|" + profile.land;
+  o.registered = regMark(profile);
   return true;
 }
 
@@ -88,7 +90,7 @@ export async function sync(profile, save) {
   if (!canSend(profile)) return res;
   const o = profile.online;
   try {
-    if (o.registered !== profile.name + "|" + profile.land) { await register(profile); save(); }
+    if (o.registered !== regMark(profile)) { await register(profile); save(); }
   } catch (e) { res.failed++; return res; }
   while (o.pendingScores.length) {
     const s = o.pendingScores[0];
