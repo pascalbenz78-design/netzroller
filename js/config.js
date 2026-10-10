@@ -26,6 +26,6 @@ export const TURN = [];
 // Der anon Key darf öffentlich sein: Die Schutzregeln liegen in der Datenbank (docs/supabase.sql).
 // Leer lassen = keine Weltrangliste, alles läuft lokal.
 export const SUPABASE = {
-  url: "",       // z. B. "https://abcdefghijkl.supabase.co"
-  anonKey: "",   // beginnt meist mit "eyJ…" oder "sb_publishable_…"
+  url: "https://cyyvirqzaqqbmjpvgryw.supabase.co",           // Projekt «netzroller», Region Zürich
+  anonKey: "sb_publishable_JZ4sX5C-LR5D8FUTkc5Knw_98R7wtof", // öffentlicher Schlüssel (publishable)
 };

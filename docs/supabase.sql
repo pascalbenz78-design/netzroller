@@ -61,7 +61,7 @@ grant select on public.scores, public.career to anon, authenticated;
 
 -- ---------- Funktionen zum Schreiben ----------
 create or replace function public.nr_hash(p_key text) returns text
-language sql immutable as $$ select encode(extensions.digest(p_key, 'sha256'), 'hex') $$;
+language sql immutable set search_path = '' as $$ select encode(extensions.digest(p_key, 'sha256'), 'hex') $$;
 
 /** Spieler anlegen oder Name/Land ändern. Beim ersten Aufruf wird der Schlüssel festgelegt. */
 create or replace function public.nr_register(p_id uuid, p_key text, p_name text, p_land text)
@@ -109,9 +109,14 @@ begin
 end $$;
 
 revoke all on function public.nr_hash(text) from public, anon, authenticated;
-grant execute on function public.nr_register(uuid, text, text, text) to anon, authenticated;
-grant execute on function public.nr_submit_score(uuid, text, integer, integer) to anon, authenticated;
-grant execute on function public.nr_submit_career(uuid, text, text, integer, integer, integer) to anon, authenticated;
+revoke all on function public.nr_register(uuid, text, text, text) from public, authenticated;
+revoke all on function public.nr_submit_score(uuid, text, integer, integer) from public, authenticated;
+revoke all on function public.nr_submit_career(uuid, text, text, integer, integer, integer) from public, authenticated;
+-- Absichtlich: Die drei Funktionen laufen als SECURITY DEFINER und sind für «anon» aufrufbar.
+-- Der Supabase-Sicherheitsberater warnt deshalb; der Schutz ist die Schlüsselprüfung in jeder Funktion.
+grant execute on function public.nr_register(uuid, text, text, text) to anon;
+grant execute on function public.nr_submit_score(uuid, text, integer, integer) to anon;
+grant execute on function public.nr_submit_career(uuid, text, text, integer, integer, integer) to anon;
 
 -- ---------- Ansicht für die Weltrangliste ----------
 drop view if exists public.world_ranking;
