@@ -71,9 +71,11 @@ export const BALANCE = {
   serve: {
     tossTime: 1.1,                              // Ball hoch und wieder unten (s)
     first: { perfect: 0.10, good: 0.30 },        // Zeitfenster als Abweichung vom höchsten Punkt (0..1)
-    ace: 0.05,                                  // erster Aufschlag noch genauer getroffen: darf unerreichbar sein (Ass)
+    ace: 0.07,                                  // erster Aufschlag noch genauer getroffen: darf unerreichbar sein (Ass)
+    aceLine: 0.012,                             // … zielt dann bis knapp an die Linie (Abstand in Platzbreiten)
+    aceFloor: 0.8,                              // … und darf schneller sein: nur dieser Anteil der Reaktionszeit, ohne Zeit für den Weg
     second: { perfect: 0.12, good: 0.55 },
-    speed: { perfect: 1.8, good: 1.35, second: 0.95 },  // × Grundtempo der Stufe
+    speed: { perfect: 1.95, good: 1.4, second: 0.95, ace: 2.3 },  // × Grundtempo der Stufe
     zoneInner: 0.53, zoneOuter: 0.80,           // Aufschlagposition: nahe Mitte = «Mitte», aussen = «nach aussen»
     depthPerfect: [0.86, 0.97],                 // × Aufschlaglinie
     depthGood: [0.50, 0.85],
@@ -85,6 +87,15 @@ export const BALANCE = {
   // Jeder Ball im Feld muss erreichbar sein: An der Schlägerlinie des Empfängers kommt er innerhalb dieses Bands an
   // (Anteil der Breite). Wer weit laufen muss, bekommt dafür etwas mehr Zeit (lateral: Platzbreiten pro Sekunde).
   reach: { band: [0.07, 0.93], lateral: 2.4 },
+
+  // Lange Ballwechsel werden schneller, damit sie nicht ewig dauern: ab dem Schlag «from» pro Schlag zusätzlich × growth,
+  // die Höchstgeschwindigkeit steigt um capPer pro Schlag, die Reaktionszeit-Untergrenze sinkt (bis floorMin).
+  longRally: { from: 8, growth: 1.05, capPer: 0.07, floorPer: 0.025, floorMin: 0.75 },
+
+  // Spin: Wer den Schläger beim Treffen seitlich bewegt, gibt dem Ball Effekt. Er fliegt dann eine Kurve und springt
+  // nach dem Aufsprung zur anderen Seite weg. Der Aufsprungpunkt (Aus oder nicht) bleibt gleich.
+  // Ab «from» Platzbreiten/s Schlägertempo; Kurve = per × Tempo, höchstens max Platzbreiten.
+  spin: { from: 0.45, per: 0.07, max: 0.16 },
 
   flight: { arc: 0.10, arcSuper: 0.05, arcAfter: 0.06, afterBounce: 0.92 },
 
@@ -187,7 +198,6 @@ export const BALANCE = {
       counter:  { up: 0.045, err: 0.95 },                                  // nimmt dein Tempo auf und spielt schneller zurück
       allround: {},
     },
-    format: { normal: { gw: 3, sw: 2 }, final: { gw: 3, sw: 3 } },   // zwei Gewinnsätze, im Final drei; jeder Satz bis 3 Spiele
     colors: [                                        // Schlägerfarben (nur Optik) und wann sie freigeschaltet werden
       { id: "classic", color: "#dff23c" },
       { id: "red",     color: "#e5484d", wins: 1 },
@@ -202,6 +212,8 @@ export const BALANCE = {
   // Turnier zu zweit: Feldgrösse, Kategorie (Anzeige), mögliche Beläge
   duoTour: { size: 16, cat: "250", surfaces: ["hard", "clay", "indoor", "grass"] },   // Gegner aus der Stufe der Karriere des eröffnenden Handys
 
-  match: { gamesToWin: 3 },
+  // Matchlänge ohne Sätze: wer zuerst so viele Games gewinnt. Standard 2, mit der Einstellung «Längere Matches» 3;
+  // im Final eines Turniers (Karriere und Turnier zu zweit) je eines mehr.
+  match: { gamesToWin: 2, long: 3, finalPlus: 1 },
   timing: { pointPause: 0.9, faultPause: 0.8, holdMax: 1.2, aiServeDelay: [0.6, 1.0] },
 };

@@ -8,7 +8,7 @@ Tennis für zwei Handys. Beide sehen den ganzen Platz von oben, jedes Handy steu
 
 Beim ersten Start am Tag läuft ein kurzes Intro im Stadion (antippen überspringt es). Danach kommt das Hauptmenü:
 
-- **Schnelles Spiel:** ein Kurzsatz gegen den Computer, Stufe darüber wählbar.
+- **Schnelles Spiel:** ein kurzes Match gegen den Computer (wer zuerst 2 Games gewinnt), Stufe darüber wählbar.
 - **Zu zweit:** zwei Handys, ein Code (siehe unten).
 - **Einstellungen:** Name und Land (für die Flagge), Ton, Schiedsrichter-Stimme, Vibration, Linkshänder (Super-Knopf links), Super-Schlag per Wischen, Intro beim Start. Mit **Profil mitnehmen** bekommst du einen Code, den du auf einem anderen Gerät wieder einfügst.
 - **Ballmaschine:** Endlos-Modus mit Highscore (siehe unten).
@@ -65,7 +65,7 @@ Du kannst mit zwei Fingern spielen: Ein Finger liegt auf «Super», der andere s
 
 - Ein Schiedsrichter ruft Aus, Netz, Let, Fehler und den Spielstand aus («Dreissig beide», «Vorteil Pascal»). Hat das Gerät keine deutsche Stimme, erscheinen die Rufe nur als Banner. Die Stimme lässt sich in den Einstellungen abschalten.
 - **Hawk-Eye:** Entscheidet ein knapper Ball den Punkt (weniger als ein Balldurchmesser von der Linie), zeigt eine Zoom-Wiederholung den Aufsprung und den Entscheid «IN» oder «AUS». Antippen überspringt sie.
-- Das Publikum raunt bei knappen Bällen, klatscht nach langen Ballwechseln und jubelt bei Spiel- und Satzgewinn.
+- Das Publikum raunt bei knappen Bällen, klatscht nach langen Ballwechseln und jubelt bei jedem Spielgewinn und beim Sieg.
 
 ### Super-Schlag
 
@@ -73,7 +73,17 @@ Jeder hat pro Ballwechsel zwei davon. Der geladene Schlag fliegt deutlich schnel
 
 ### Zählweise
 
-Wie im Tennis: 15, 30, 40, Einstand, Vorteil. Wer zuerst **3 Spiele** gewinnt, holt den Satz. Der Aufschlag wechselt nach jedem Spiel.
+Wie im Tennis: 15, 30, 40, Einstand, Vorteil. Es gibt keine Sätze: Wer zuerst **2 Games** gewinnt, gewinnt das Match (höchstens 3 Games). In den Einstellungen lässt sich «Längere Matches» einschalten: dann 3 Gewinn-Games. Im Final eines Turniers ist es je eines mehr. Der Aufschlag wechselt nach jedem Game.
+
+### Ass, Spin und lange Ballwechsel
+
+- **Ass:** Triffst du beim ersten Aufschlag den höchsten Punkt ganz genau (der Ring leuchtet dann in der Super-Farbe), wird der Aufschlag besonders schnell und genau. Stellst du dich dazu ganz nach aussen, ist er meist unerreichbar. Alle anderen Bälle im Feld bleiben erreichbar.
+- **Spin:** Bewegst du den Schläger im Moment des Treffens schnell zur Seite, bekommt der Ball Effekt: Er fliegt eine Kurve und springt nach dem Aufsprung zur anderen Seite weg. Wo er aufspringt, ändert sich dadurch nicht. Du erkennst Spin an den drehenden Nähten.
+- **Lange Ballwechsel** werden ab dem 8. Schlag mit jedem Schlag schneller, damit sie nicht ewig dauern.
+
+### Optionen während des Spiels
+
+Oben rechts neben «Aufgeben» öffnet das Zahnrad die Optionen (Ton, Stimme, Vibration, Linkshänder, Wischen). Allein hält das Spiel so lange an, zu zweit läuft es weiter.
 
 ### Schwierigkeitsstufen
 
@@ -107,7 +117,7 @@ Deine Karriere führt in vier Stufen von der Region an die Weltspitze. In jeder 
 | 4. Welt | 63, die Besten | 8 Turniere inklusive Grand Slam Netzroller und Weltfinale der Top 8 | – |
 
 - Aufsteigen kannst du frühestens nach einer ganzen Saison in der Stufe. Hast du die Rangierung erreicht, erscheint **Aufsteigen**; du kannst auch noch in der Stufe bleiben.
-- **Jedes Match geht über zwei Gewinnsätze, der Final über drei.** Jeder Satz ist ein Kurzsatz bis 3 Spiele.
+- **Jedes Match geht auf 2 Gewinn-Games, der Final auf 3** (mit «Längere Matches»: 3 und 4).
 - Die Turniere haben verschiedene Beläge: Sand ist langsamer (beim Alpen Classic mit mehr Effekt), Halle schnell mit wenig Netzroller, Rasen schnell mit mehr Netzroller.
 - Die Gegner spielen verschieden: die **Wand** macht kaum Fehler, die **Kanone** schlägt hart auf und zündet viele Super-Schläge, der **Winkelspieler** zielt an die Linien, der **Konterspieler** spielt dein Tempo schneller zurück, der **Allrounder** ist ausgeglichen. Von Runde zu Runde werden die Gegner stärker.
 - Je weiter du in einem Turnier kommst, desto mehr Ranglistenpunkte gibt es. Es zählen die Turniere einer Saison der Stufe; die Computerspieler spielen im Hintergrund weiter.
@@ -116,7 +126,7 @@ Deine Karriere führt in vier Stufen von der Region an die Weltspitze. In jeder 
 
 ## Turnier zu zweit
 
-Zwei Handys spielen gemeinsam ein Turnier mit 16 Spielern (Belag zufällig). Die Computergegner kommen aus der Karriere-Stufe des Handys, das das Turnier eröffnet. Jedes Match geht über zwei Gewinnsätze, der Final gegeneinander über drei.
+Zwei Handys spielen gemeinsam ein Turnier mit 16 Spielern (Belag zufällig). Die Computergegner kommen aus der Karriere-Stufe des Handys, das das Turnier eröffnet. Jedes Match geht auf 2 Gewinn-Games, der Final gegeneinander auf 3 (mit «Längere Matches» auf dem eröffnenden Handy: 3 und 4). «Turnier verlassen» steht bewusst etwas abseits und fragt noch einmal nach.
 
 1. Handy 1 tippt im Menü auf **Turnier zu zweit** und dann auf **Turnier eröffnen**. Es bekommt einen Code.
 2. Handy 2 tippt auf **Zu zweit**, gibt den Code ein und tippt auf **Los**.

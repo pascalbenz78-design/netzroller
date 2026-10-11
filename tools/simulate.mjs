@@ -31,12 +31,24 @@ function simPoint(lv, side, st) {
       if (no === 1) { no = 2; st.fault1++; continue; }
       st.end.df++; return;
     }
+    if (no === 1) { st.firstIn++; if (humanMiss(sh, lv)) st.humanAce++; }
     return rally(sh, 0, ai, lv, st);
   }
 }
 
+/**
+ * Würde ein schneller Mensch den Aufschlag verpassen? Entweder kommt der Schläger gar nicht hin (Ball ausserhalb
+ * der Reichweite am Rand), oder die Zeit reicht nicht: Start in der Mitte, 0,35 s Reaktion, Finger 2,5 Platzbreiten/s.
+ */
+function humanMiss(sh, lv) {
+  const xr = 1 - R.xAt(sh, 2), reach = lv.hw + R.C.ballR;
+  if (Math.abs(xr - R.clamp(xr, lv.hw, 1 - lv.hw)) > reach) return true;
+  const need = Math.max(0, Math.abs(xr - 0.5) - reach);
+  return R.timeline(sh).tRacket < 0.35 + need / 2.5;
+}
+
 function rally(sh, hitter, ai, lv, st) {
-  let strokes = 1, maxSpeed = 0;
+  let strokes = 1, maxSpeed = 0, time = 0;
   for (;;) {
     const recv = 1 - hitter;
     aiIncoming(ai[recv], sh);
@@ -46,6 +58,8 @@ function rally(sh, hitter, ai, lv, st) {
     if (sh.res === "in") st.minTime = Math.min(st.minTime, tl.tRacket);
     if (sh.res === "out") { st.end.out++; break; }
     if (sh.res === "net") { st.end.net++; break; }
+    time += tl.tRacket;
+    if (sh.cv && sh.kind === "rally") st.spin++;
     for (let t = 0; t < tl.tRacket; t += DT) { aiStep(ai[recv], DT); aiStep(ai[hitter], DT); }
     const xr = 1 - R.xAt(sh, 2);
     const reach = lv.hw + R.C.ballR;
@@ -53,13 +67,13 @@ function rally(sh, hitter, ai, lv, st) {
     const off = (xr - ai[recv].x) / reach;
     const sup = aiWantsSuper(ai[recv]);
     if (sup) st.supers++;
-    sh = R.makeRallyShot({ x0: xr, off, pv: ai[recv].vel, prevNormal: sh.ns, sup }, lv, rand);
+    sh = R.makeRallyShot({ x0: xr, off, pv: ai[recv].vel, prevNormal: sh.ns, sup }, lv, rand, { stroke: strokes + 1 });
     if (sh.nc) st.netcord++;
     if (sh.frame) st.frames++;
     strokes++;
     hitter = recv;
   }
-  st.rallies.push(strokes);
+  st.rallies.push(strokes); st.times.push(time);
 }
 
 const pct = (a, n) => (100 * a / n).toFixed(1) + " %";
@@ -67,16 +81,17 @@ if (MACHINE) { simMachine(); process.exit(0); }
 if (TOUR) { simTour(); process.exit(0); }
 const rows = [];
 for (const lv of B.levels) {
-  const st = { end: { out: 0, net: 0, df: 0, winner: 0, ace: 0 }, rallies: [], netcord: 0, let: 0, fault1: 0, supers: 0, frames: 0, minTime: Infinity };
+  const st = { end: { out: 0, net: 0, df: 0, winner: 0, ace: 0 }, rallies: [], times: [], firstIn: 0, humanAce: 0, spin: 0, netcord: 0, let: 0, fault1: 0, supers: 0, frames: 0, minTime: Infinity };
   for (let i = 0; i < N; i++) simPoint(lv, i % 2 ? "ad" : "deuce", st);
   const r = st.rallies, mean = r.reduce((a, b) => a + b, 0) / r.length;
-  const sorted = [...r].sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)];
-  rows.push([lv.name, mean.toFixed(1), median, pct(st.end.out, N), pct(st.end.net, N), pct(st.end.df, N),
+  const sorted = [...r].sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)], p95 = sorted[Math.floor(sorted.length * 0.95)];
+  const ts = [...st.times].sort((a, b) => a - b), tMax = ts[Math.floor(ts.length * 0.99)];
+  rows.push([lv.name, mean.toFixed(1), median, p95, tMax.toFixed(1) + " s", pct(st.humanAce, st.firstIn), st.spin, pct(st.end.out, N), pct(st.end.net, N), pct(st.end.df, N),
              pct(st.end.winner + st.end.ace, N), pct(st.end.ace, N), pct(st.fault1, N), st.netcord, st.let, st.minTime.toFixed(2) + " s (min. " + lv.minReaction + ")"]);
 }
 console.log(`Simulation: ${N} Punkte pro Stufe, Computer gegen Computer\n`);
-console.log("| Stufe | Schläge Ø | Median | Aus | Netz | Doppelfehler | Gewinnschlag | davon Ass | 1. Aufschlag Fehler | Netzroller | Let | kürzeste Flugzeit |");
-console.log("|---|---|---|---|---|---|---|---|---|---|---|---|");
+console.log("| Stufe | Schläge Ø | Median | 95 % bis | Dauer 99 % bis | Ass gegen Mensch (1. Aufschlag) | Schläge mit Spin | Aus | Netz | Doppelfehler | Gewinnschlag | davon Ass | 1. Aufschlag Fehler | Netzroller | Let | kürzeste Flugzeit |");
+console.log("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 for (const r of rows) console.log("| " + r.join(" | ") + " |");
 
 // ---------- Ballmaschine ----------

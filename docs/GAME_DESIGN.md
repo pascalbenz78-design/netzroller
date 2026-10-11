@@ -392,9 +392,30 @@ Laufend nachgeführt. Jeder Eintrag: was entschieden wurde und warum.
 91. **Ass beim perfekten Aufschlag** (Rückmeldung von Pascal): Trifft der erste Aufschlag den höchsten Punkt besonders genau (Abweichung höchstens 0,05, `serve.ace`), entfällt die Lenkung in Reichweite. Ist er dazu ganz breit gezielt, kann er unerreichbar sein (bei rund 4 % dieser Aufschläge). Alle anderen Aufschläge und Schläge bleiben erreichbar.
 92. **Supabase eingerichtet:** Projekt «netzroller» (Gratis-Plan, Region Zürich, eu-central-2) mit dem Skript `docs/supabase.sql`. Im Spiel steht der öffentliche «publishable» Schlüssel; der geheime Schlüssel kommt nie ins Spiel. Die Schreib-Funktionen darf nur die Rolle `anon` aufrufen. Der Sicherheitsberater von Supabase warnt, dass diese SECURITY-DEFINER-Funktionen öffentlich aufrufbar sind: Das ist gewollt, jede Funktion prüft den Schlüssel des Profils. Die Registrierung wird pro Datenbank-Adresse gemerkt, damit ein Wechsel (Test-Server → Supabase) neu einträgt.
 
+### Phase 8 (Rückmeldung von Pascal, 11.10.2026: Asse, lange Ballwechsel, Spin, Gewinn-Games, Knöpfe, Optionen)
+
+93. **Mehr Asse:** Erster Aufschlag allgemein etwas schneller (`serve.speed` perfekt 1,95, gut 1,4). Im Ass-Fenster (Abweichung höchstens 0,07 statt 0,05, `serve.ace`) fliegt er mit 2,3 × Grundtempo, zielt bis 0,012 an die Linie (`serve.aceLine`) und muss nur 80 % der Reaktionszeit lassen (`serve.aceFloor`), ohne Zusatzzeit für den Weg. Wer ganz aussen steht und perfekt trifft, schlägt so meist ein Ass. Beim Hochwerfen leuchtet der Ring im Ass-Fenster in der Super-Farbe. Gemessen gegen einen schnellen Menschen (0,35 s Reaktion, Finger 2,5 Platzbreiten/s): vorher 0 %, jetzt 1–4 % aller ersten Aufschläge des Computers unerreichbar (er zielt zufällig); ein Mensch, der gezielt aussen steht, deutlich mehr.
+94. **Lange Ballwechsel werden schneller** (`longRally`): ab dem 8. Schlag pro Schlag zusätzlich × 1,05, die Höchstgeschwindigkeit steigt um 7 % pro Schlag, die Reaktionszeit-Untergrenze sinkt um 2,5 % pro Schlag bis auf 75 %. Nicht in der Ballmaschine (die wird ohnehin schneller). Die längsten Ballwechsel (99 %) dauern in der Simulation 36 statt 51 s (Leicht), 22 statt 32 s (Mittel), 16 statt 27 s (Schwer).
+95. **Spin aus der Schlägerbewegung** (`spin`): Bewegt sich der Schläger beim Treffen schneller als 0,45 Platzbreiten/s seitlich, fliegt der Ball eine Kurve in diese Richtung (bis 0,16 Platzbreiten) und springt nach dem Aufsprung zurück. Der Aufsprungpunkt bleibt exakt, Linienentscheide ändern sich also nicht; die Lenkung in Reichweite (Entscheid 67) gilt weiter. Gilt auch für den Computer (er bewegt sich beim Schlag oft). Die Nähte des Balls drehen sich sichtbar. Zu zweit wird `cv` wie bisher übertragen.
+96. **Keine Sätze mehr, Gewinn-Games:** Ein Match geht standardmässig auf zwei Gewinn-Games (höchstens drei Games). Einstellung «Längere Matches»: drei Gewinn-Games. Im Final eines Turniers (Karriere, Finalturnier, Turnier zu zweit inklusive Final gegeneinander) jeweils eines mehr, also 3 bzw. 4 (`match.finalPlus`). Gilt auch für «Schnelles Spiel» und «Zu zweit» (das eröffnende Handy bestimmt). Ersetzt Entscheid 86. Die Satz-Logik in `rules.js` bleibt (`sw: 1`), wird aber nicht mehr benutzt.
+97. **Statuszeile** bricht auf dem Handy in zwei Zeilen um statt abgeschnitten zu werden.
+98. **Turnier verlassen** steht deutlich abgesetzt (36 px Abstand und Trennlinie) unter «Anfeuern» und fragt nach («Nein, bleiben» / «Ja, verlassen»). Die Rückfrage verschwindet nach 8 s ohne Antwort. Dasselbe gilt für «Zurück zum Menü» bei einem fertigen, noch nicht abgeschlossenen Turnier.
+99. **Optionen während des Spiels:** Zahnrad oben neben «Aufgeben». Ton, Stimme, Vibration, Linkshänder und Wischen lassen sich umschalten (gleiche Einstellungen wie im Menü). Allein hält das Spiel an; zu zweit läuft es weiter (sonst müsste das andere Handy mit anhalten). Musik gibt es noch keine.
+
 ---
 
 ## Balance-Auswertung
+
+### Stand Phase 8 (`node tools/simulate.mjs 4000`)
+
+| Stufe | Schläge Ø | Median | 95 % bis | Dauer 99 % bis | Ass gegen Mensch (1. Aufschlag) | Schläge mit Spin | Aus | Netz | Doppelfehler | Gewinnschlag | davon Ass | 1. Aufschlag Fehler | Netzroller | Let | kürzeste Flugzeit |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Leicht | 8.6 | 6 | 25 | 36.4 s | 1.2 % | 1717 | 10.1 % | 6.3 % | 7.3 % | 76.3 % | 7.5 % | 40.2 % | 1273 | 205 | 0.30 s (min. 0.4) |
+| Mittel | 7.9 | 6 | 22 | 22.5 s | 2.7 % | 2003 | 14.1 % | 6.4 % | 4.7 % | 74.8 % | 8.7 % | 35.6 % | 1238 | 192 | 0.24 s (min. 0.32) |
+| Schwer | 8.6 | 6 | 24 | 15.9 s | 3.6 % | 3184 | 21.6 % | 6.6 % | 2.9 % | 68.9 % | 8.5 % | 29.7 % | 1382 | 177 | 0.20 s (min. 0.26) |
+
+«Ass gegen Mensch»: Anteil der ersten Aufschläge im Feld, die ein schneller Mensch nicht erreicht (siehe Entscheid 93). «95 % bis»: so viele Schläge hat ein Ballwechsel höchstens (95 % der Fälle). «Dauer 99 % bis»: Länge der längsten Ballwechsel in Sekunden.
+
 
 Erzeugt mit `node tools/simulate.mjs 500` (Computer gegen Computer, 500 Punkte pro Stufe, fester Startwert). «Gewinnschlag» heisst: Der Empfänger hat den Ball nicht erreicht.
 

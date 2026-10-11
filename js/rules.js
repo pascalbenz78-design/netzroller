@@ -78,7 +78,7 @@ export function xAt(sh, d) {
 }
 
 /**
- * Effekt (nur Ballmaschine): seitliche Kurve, die am Schlag und am Aufsprung null ist.
+ * Effekt (Spin aus der Schlägerbewegung, Sandplatz, Ballmaschine): seitliche Kurve, die am Schlag und am Aufsprung null ist.
  * Der Aufsprungpunkt bleibt so exakt wie berechnet. Nach dem Aufsprung springt der Ball
  * in Richtung des Effekts weg (Tangente der Kurve).
  */
@@ -92,9 +92,9 @@ function curve(sh, d) {
  * Begrenzt das Tempo so, dass der Empfänger mindestens minReaction Sekunden hat, plus Zeit für den
  * seitlichen Weg von der Mitte bis dorthin, wo der Ball ankommt.
  */
-function applyReactionFloor(sh, minReaction) {
+function applyReactionFloor(sh, minReaction, mul = 1) {
   if (!minReaction) return sh;
-  const need = minReaction + Math.abs(xAt(sh, 2) - 0.5) / B.reach.lateral;
+  const need = sh.ace ? minReaction * B.serve.aceFloor : minReaction * mul + Math.abs(xAt(sh, 2) - 0.5) / B.reach.lateral;
   const t = timeline(sh).tRacket;
   if (t < need) { const k = t / need; sh.s1 *= k; sh.s2 *= k; }
   return sh;
@@ -119,7 +119,7 @@ function finish(sh, lv, rand, opts) {
   }
   // Jeder Ball bleibt erreichbar – ausser ein wirklich perfekter erster Aufschlag (Ass möglich)
   if ((sh.res === "in" || sh.res === "let") && !sh.ace) keepReachable(sh);
-  if (!opts.noFloor) applyReactionFloor(sh, lv.minReaction);
+  if (!opts.noFloor) applyReactionFloor(sh, lv.minReaction, opts.floorMul);
   return sh;
 }
 
@@ -145,10 +145,13 @@ function judge(sh) {
  * @param o.off Trefferpunkt auf dem Schläger, -1 (linker Rand) .. +1 (rechter Rand)
  * @param o.pv  Schlägertempo quer (Platzbreiten/s)
  * @param o.prevNormal  normales Tempo des letzten Schlags
+ * @param opts.stroke   der wievielte Schlag des Ballwechsels (lange Ballwechsel werden schneller)
  */
 export function makeRallyShot(o, lv, rand = Math.random, opts = {}) {
   const Z = B.zones, a = Math.abs(o.off), sg = o.off < 0 ? -1 : 1;
-  const normal = Math.min(o.prevNormal * lv.up, opts.maxSpeed ?? lv.max);
+  const L = B.longRally, extra = Math.max(0, (opts.stroke || 0) - L.from);
+  const normal = Math.min(o.prevNormal * lv.up * (extra ? L.growth : 1), (opts.maxSpeed ?? lv.max) * (1 + L.capPer * extra));
+  if (extra) opts = { ...opts, floorMul: Math.max(L.floorMin, 1 - L.floorPer * extra) };
   let speed = o.sup ? normal * B.superMult : normal;
   const pvAim = clamp(o.pv * Z.paddleInfluence, -Z.paddleAimMax, Z.paddleAimMax);
   let lat, f, why = null, frame = false;
@@ -177,7 +180,12 @@ export function makeRallyShot(o, lv, rand = Math.random, opts = {}) {
                serve: 0, sup: !!o.sup, ns: normal, frame, res: "in" };
   sh.xn = sh.x0 + (sh.bx - sh.x0) / sh.bd;
   judge(sh);
-  if (opts.spin && sh.why !== "net") sh.cv = (rand() * 2 - 1) * opts.spin;   // Belag mit Effekt (Sand)
+  if (sh.why !== "net") {
+    let cv = opts.spin ? (rand() * 2 - 1) * opts.spin : 0;                     // Belag mit Effekt (Sand)
+    const P = B.spin, pv = Math.abs(o.pv || 0);
+    if (!frame && pv > P.from) cv += Math.sign(o.pv) * Math.min(P.max, (pv - P.from) * P.per + P.per * 0.5);   // Spin aus der Schlägerbewegung
+    if (cv) sh.cv = cv;
+  }
   return finish(sh, lv, rand, opts);
 }
 
@@ -225,7 +233,9 @@ export function makeServe(o, lv, rand = Math.random, opts = {}) {
   const deuce = o.side === "deuce";
   const a = clamp(deuce ? (o.x0 - z0) / (z1 - z0) : (z1 - o.x0) / (z1 - z0), 0, 1);   // 0 = Mitte, 1 = aussen
   const [b0, b1] = serviceBox(o.side);
-  const tIn = deuce ? b1 - 0.035 : b0 + 0.035, tOut = deuce ? b0 + 0.035 : b1 - 0.035;
+  const ace = o.no === 1 && Math.abs(o.err) <= S.ace;
+  const m = ace ? S.aceLine : 0.035;                                   // ein Ass darf bis knapp an die Linie
+  const tIn = deuce ? b1 - m : b0 + m, tOut = deuce ? b0 + m : b1 - m;
   const target = lerp(tIn, tOut, a), boxMid = (b0 + b1) / 2;
 
   const e = Math.abs(o.err);
@@ -234,11 +244,11 @@ export function makeServe(o, lv, rand = Math.random, opts = {}) {
   else if (e <= W.good) quality = "good";
   else quality = o.err < 0 ? "net" : "long";
 
-  if (o.no === 1) speed = lv.base * (quality === "perfect" ? S.speed.perfect : S.speed.good);
+  if (o.no === 1) speed = lv.base * (ace ? S.speed.ace : quality === "perfect" ? S.speed.perfect : S.speed.good);
   else speed = lv.base * S.speed.second * (quality === "perfect" ? 1.1 : 1);
   if (o.sup) speed *= B.superMult;
 
-  if (quality === "perfect") { bx = target + (rand() * 2 - 1) * 0.01; bv = C.serviceLine * uni(rand, S.depthPerfect); }
+  if (quality === "perfect") { bx = target + (rand() * 2 - 1) * (ace ? 0.004 : 0.01); bv = C.serviceLine * uni(rand, S.depthPerfect); }
   else { bx = lerp(target, boxMid, S.goodPull) + (rand() * 2 - 1) * 0.04; bv = C.serviceLine * uni(rand, S.depthGood); }
   if (o.sup) bv += 0.06;
   if (quality === "net") why = "net";
@@ -246,7 +256,7 @@ export function makeServe(o, lv, rand = Math.random, opts = {}) {
 
   const sh = { kind: "serve", x0: o.x0, bx, bd: 1 + Math.min(bv, C.bounceMax), s1: speed, s2: speed, why, nc: false,
                serve: o.no, side: o.side, sup: !!o.sup, ns: lv.base, frame: false, quality, res: "in",
-               ace: o.no === 1 && Math.abs(o.err) <= S.ace };
+               ace };
   sh.xn = sh.x0 + (sh.bx - sh.x0) / sh.bd;
   judge(sh);
   return finish(sh, lv, rand, opts);
@@ -258,6 +268,10 @@ export const other = r => (r === "A" ? "B" : "A");
  * Spielstand. fs: wer im ersten Spiel aufschlägt (Münzwurf). Format: gw Spiele pro Satz, sw Gewinnsätze.
  * st: gewonnene Sätze, tg: gespielte Spiele insgesamt (für den Aufschlagwechsel über Sätze hinweg).
  */
+/** Matchformat: Gewinn-Games nach Einstellung (long) und ob es ein Turnier-Final ist. Keine Sätze mehr. */
+export function matchFormat(long, final) {
+  return { gw: (long ? B.match.long : B.match.gamesToWin) + (final ? B.match.finalPlus : 0), sw: 1 };
+}
 export function freshScore(seq = 0, fs = "A", format = {}) {
   return { seq, p: { A: 0, B: 0 }, g: { A: 0, B: 0 }, win: null, fs, gw: format.gw || B.match.gamesToWin, sw: format.sw || 1, st: { A: 0, B: 0 }, tg: 0 };
 }

@@ -59,7 +59,7 @@ function renderHub(note) {
   $("crTName").textContent = tName(c.tier, c.ti);
   $("crTMeta").textContent = `${T.categories[t.cat]} · ${T.surfaceNames[t.surface]} (${T.surfaceHints[t.surface]}) · ${T.drawSize(t.size)}`;
   $("crSwatch").style.background = sf.court;
-  $("crTFormat").textContent = t.cat === "final" ? T.formatFinal : T.formatEarly;
+  $("crTFormat").textContent = (t.cat === "final" ? T.formatFinal : T.formatEarly)(ctx.profile.settings.longMatch ? B.match.long : B.match.gamesToWin);
 
   const actions = $("crActions"); actions.textContent = "";
   const btn = (label, cls, fn) => { const b = el("button", cls, label); b.onclick = fn; actions.appendChild(b); };

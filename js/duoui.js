@@ -26,7 +26,7 @@ export function renderDuo(st, o) {
   if (!st) {
     $("dtMeta").textContent = "";
     act.appendChild(el("p", "small", T.duoWaitHost));
-    act.appendChild(button(T.duoLeave, "ghost", o.on.leave));
+    act.appendChild(leaveZone(T.duoLeave, o));
     return;
   }
   $("dtMeta").textContent = `${T.categories[st.cat]} · ${T.surfaceNames[st.surface]}`;
@@ -71,7 +71,8 @@ export function renderDuo(st, o) {
     act.appendChild(el("p", "small", T.duoChampion(DT.who(st, st.champion).name)));
     if (o.note) act.appendChild(el("p", "note good", o.note));
     if (!o.closed) act.appendChild(button(T.duoClose, "", o.on.close));
-    act.appendChild(button(T.backMenu, o.closed ? "" : "ghost", o.on.leave));
+    if (o.closed) act.appendChild(button(T.backMenu, "", o.on.leave));
+    else act.appendChild(leaveZone(T.backMenu, o));                        // noch nicht abgeschlossen: Punkte gingen verloren
     return;
   }
   if (m && !m.vsHuman) {
@@ -91,7 +92,27 @@ export function renderDuo(st, o) {
   }
   // Anfeuern: wenn du ausgeschieden bist oder auf den anderen wartest, solange er noch im Turnier ist
   if (other && !m && DT.alive(st, other.id)) act.appendChild(button(T.duoCheer, "ghost", o.on.cheer));
-  act.appendChild(button(T.duoLeave, "ghost", o.on.leave));
+  act.appendChild(leaveZone(T.duoLeave, o));
+}
+
+// Verlassen mit Rückfrage. Der Stand der Rückfrage überlebt das Neuzeichnen (Live-Stand kommt laufend an).
+let confirmAt = 0;
+const CONFIRM_MS = 8000;
+function leaveZone(label, o) {
+  const z = el("div", "leave-zone");
+  const redraw = () => z.replaceWith(leaveZone(label, o));
+  if (Date.now() - confirmAt < CONFIRM_MS) {
+    z.appendChild(el("p", "small", T.duoLeaveSure));
+    const row = el("div", "confirm-row");
+    row.append(button(T.duoLeaveNo, "", () => { confirmAt = 0; redraw(); }),
+               button(T.duoLeaveYes, "danger", () => { confirmAt = 0; o.on.leave(); }));
+    z.appendChild(row);
+  } else z.appendChild(button(label, "ghost", () => {
+    confirmAt = Date.now(); redraw();
+    // ohne Antwort verschwindet die Rückfrage wieder
+    setTimeout(() => { const cur = document.querySelector(".leave-zone"); if (cur && Date.now() - confirmAt >= CONFIRM_MS) cur.replaceWith(leaveZone(label, o)); }, CONFIRM_MS + 50);
+  }));
+  return z;
 }
 
 function button(label, cls, fn) { const b = el("button", cls, label); b.onclick = fn; return b; }

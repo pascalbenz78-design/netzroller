@@ -8,6 +8,7 @@
 
 import { BALANCE as B } from "./balance.js";
 import { TIER_PLAYERS } from "./tiers.js";
+import { matchFormat } from "./rules.js";
 
 const K = B.career;
 export const TIER_IDS = K.tiers.map(t => t.id);
@@ -154,9 +155,9 @@ export function roundKey(size, r) {
   return ["F", "SF", "QF", "R16", "R32"][fromEnd - 1];
 }
 
-/** Matchformat: zwei Gewinnsätze, im Final drei (jeder Satz ein Kurzsatz). */
-export function formatFor(key) {
-  return key === "F" ? K.format.final : K.format.normal;
+/** Matchformat: Gewinn-Games nach Einstellung, im Final eines mehr (ohne Sätze). */
+export function formatFor(key, long) {
+  return matchFormat(long, key === "F");
 }
 
 /** Nächstes Spiel für dich: { opp, key, roundIndex } oder null. */

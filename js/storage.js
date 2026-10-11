@@ -4,7 +4,7 @@
 const KEY = "nr-profile";
 const CODE_PREFIX = "NR1.";
 
-export const DEFAULT_SETTINGS = { sound: true, voice: true, vibration: true, lefty: false, swipe: true, intro: true };
+export const DEFAULT_SETTINGS = { sound: true, voice: true, vibration: true, lefty: false, swipe: true, intro: true, longMatch: false };
 
 function defaults() {
   return { v: 1, name: "", land: "CH", level: 1, settings: { ...DEFAULT_SETTINGS }, introSeen: "", highscores: [], career: null, online: null };

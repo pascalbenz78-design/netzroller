@@ -49,7 +49,7 @@ export function initUI({ profile, onChange, onIntro }) {
 
   // Schalter
   $("setOnline").addEventListener("change", () => { ON.ensureIdentity(profile); profile.online.join = $("setOnline").checked; save(); });
-  const toggles = { setSound: "sound", setVoice: "voice", setVibration: "vibration", setLefty: "lefty", setSwipe: "swipe", setIntro: "intro" };
+  const toggles = { setSound: "sound", setVoice: "voice", setVibration: "vibration", setLefty: "lefty", setSwipe: "swipe", setIntro: "intro", setLongMatch: "longMatch" };
   Object.entries(toggles).forEach(([id, key]) => $(id).addEventListener("change", () => { profile.settings[key] = $(id).checked; save(); fillSettings(profile); }));
 
   // Export / Import
@@ -76,6 +76,7 @@ function fillSettings(p) {
   $("setSound").checked = p.settings.sound; $("setVoice").checked = p.settings.voice;
   $("setVibration").checked = p.settings.vibration; $("setLefty").checked = p.settings.lefty;
   $("setSwipe").checked = p.settings.swipe; $("setIntro").checked = p.settings.intro;
+  $("setLongMatch").checked = p.settings.longMatch;
   $("setOnline").checked = !p.online || p.online.join !== false;
   $("setOnlineRow").hidden = !ON.onlineConfigured();
   $("exportRow").hidden = true; $("settingsMsg").hidden = true;

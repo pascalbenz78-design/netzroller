@@ -28,7 +28,7 @@ import { SUPABASE } from "./config.js";
 const $ = id => document.getElementById(id);
 const cv = $("cv"), ctx = cv.getContext("2d");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-const GAMES = B.match.gamesToWin, TOSS = B.serve.tossTime, HIT_LINE = 0.04, MISS_D = 2.18;
+const GAMES = B.match.long + B.match.finalPlus, TOSS = B.serve.tossTime, HIT_LINE = 0.04, MISS_D = 2.18;
 
 // Texte aus texts.js ins HTML
 document.querySelectorAll("[data-t]").forEach(el => { if (typeof T[el.dataset.t] === "string") el.textContent = T[el.dataset.t]; });
@@ -65,6 +65,10 @@ let syncFromHost = false, lastAsk, lastRq, lastReplayAt = 0, waitMs = 0, askedTh
 const NET = { pauseAfter: 3000, resumeWithin: 1500, askAfter: 2000, replayAfter: 6000, hintAfter: 8000, tick: 250, lastGameMinutes: 30 };
 const token = () => Math.random().toString(36).slice(2, 8);
 
+/** Matchlänge nach Einstellung (Schnelles Spiel, Spiel zu zweit). */
+const fmt = () => R.matchFormat(profile.settings.longMatch, false);
+/** Allein und Optionen offen: das Spiel steht. */
+const frozen = () => optOpen && mode !== "play";
 const playing = () => mode === "play" || mode === "solo" || mode === "machine";
 const isLocal = role => mode !== "play" || role === myRole;
 const reach = () => LV.hw + C.ballR;
@@ -144,6 +148,7 @@ cv.addEventListener("contextmenu", e => e.preventDefault());
 
 const keys = {};
 addEventListener("keydown", e => {
+  if (e.key === "Escape" && optOpen) { closeOptions(); return; }
   if (e.target.tagName === "INPUT") return;
   keys[e.key] = true;
   if (!playing()) return;
@@ -158,7 +163,7 @@ superBtn.addEventListener("pointerdown", e => e.stopPropagation());
 superBtn.addEventListener("click", () => { audioInit(); arm(); });
 
 function arm(only) {
-  if (!playing() || mySupers <= 0) return;
+  if (!playing() || mySupers <= 0 || frozen()) return;
   if (!["serve", "toss", "oppserve", "opptoss", "fly"].includes(ball.phase)) return;
   armed = only ? true : !armed;
   updateSuperBtn();
@@ -179,7 +184,7 @@ function updateSuperBtn() {
 
 /** Antippen: beim Aufschlag erst hochwerfen, dann schlagen. */
 function tap() {
-  if (!playing()) return;
+  if (!playing() || frozen()) return;
   if (hawk) { hawk.t = hawk.dur; return; }
   if (ball.phase === "serve") {
     if (mode === "play" && !oppHere) return;
@@ -212,15 +217,17 @@ function launch(sh, from) {
   renderBoard();
 }
 
+/** Optionen für einen Rückschlag: lange Ballwechsel werden schneller (nicht in der Ballmaschine). */
+const rallyOpts = () => (mode === "machine" ? matchOpts : { ...matchOpts, stroke: rallyStrokes + 1 });
 function myHit(x) {
   const off = (x - px) / reach();
-  const sh = R.makeRallyShot({ x0: x, off, pv: pVel, prevNormal: ball.shot.ns, sup: consumeSuper() }, LV, Math.random, matchOpts);
+  const sh = R.makeRallyShot({ x0: x, off, pv: pVel, prevNormal: ball.shot.ns, sup: consumeSuper() }, LV, Math.random, rallyOpts());
   launch(sh, myRole);
 }
 
 function aiHit(x) {
   const xa = 1 - x;                                  // Blick der KI
-  const sh = R.makeRallyShot({ x0: xa, off: (xa - ai.x) / oppReach(), pv: ai.vel, prevNormal: ball.shot.ns, sup: aiWantsSuper(ai) }, ai.lv, Math.random, matchOpts);
+  const sh = R.makeRallyShot({ x0: xa, off: (xa - ai.x) / oppReach(), pv: ai.vel, prevNormal: ball.shot.ns, sup: aiWantsSuper(ai) }, ai.lv, Math.random, rallyOpts());
   launch(sh, "B");
 }
 
@@ -280,7 +287,7 @@ function awardPoint(w) {
 
 function scorePoint(w) {
   if (w === myRole) sfx.won(); else { sfx.lost(); buzz([40, 40, 40]); }
-  applyScore(R.addPoint(score, w, GAMES), true);
+  applyScore(R.addPoint(score, w), true);
 }
 
 function applyScore(s2, mine) {
@@ -385,7 +392,7 @@ function renderBoard() {
   $("srvMe").classList.toggle("on", R.server(score) === me);
   $("srvOp").classList.toggle("on", R.server(score) === op);
   const mc = careerMatch || duoMatch;
-  let st = mc ? mc.tName + " · " + mc.round : duoFinal ? T.duoFinalEvent : T.status(LV.name, GAMES);
+  let st = mc ? mc.tName + " · " + mc.round : duoFinal ? T.duoFinalEvent : T.status(LV.name, score.gw);
   if ((score.sw || 1) > 1) st += " · " + T.setsLineFull(score.st[me], score.st[op], score.sw);
   if (a >= 3 && b >= 3) st = LV.name + " · " + (a === b ? T.deuce : (a > b ? T.advYou : T.adv(oppName)));
   if (playing() && ["serve", "toss", "oppserve", "opptoss"].includes(ball.phase)) st += " · " + (serveNo === 2 ? T.serve2 : T.serve1);
@@ -593,7 +600,7 @@ async function enterRoom(code, asHost, saved) {
   currentCode = code; matchStarted = false; paused = false; epoch = 0; lastHb = undefined; lastAsk = undefined; lastRq = undefined;
   syncFromHost = !asHost;                                      // das beitretende Handy übernimmt den Stand des eröffnenden
   if (saved && validScore(saved.score)) { score = saved.score; if (asHost && Number.isInteger(saved.level)) setLevel(saved.level, false); }
-  else score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B");   // Münzwurf: das eröffnende Handy entscheidet
+  else score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B", fmt());   // Münzwurf und Matchlänge: das eröffnende Handy entscheidet
   try {
     note(T.connecting);
     game = await room.join("nr-" + code, asHost);
@@ -658,6 +665,7 @@ function startTourLobby() {
   if (host) {
     // Feld aus der Stufe der eigenen Karriere: im Aargau gegen Aargauer, auf der Welt-Tour gegen die Besten
     duo = DT.createDuoTour([{ id: "H0", name: myName || T.you, land: profile.land }, { id: "H1", name: oppName, land: oppLand }], myCareer());
+    duo.long = !!profile.settings.longMatch;                 // Matchlänge des eröffnenden Handys gilt für beide
     publish({ tourState: duo });
   }
   $("quit").hidden = true; inGame(true);
@@ -724,7 +732,7 @@ function startDuoMatch() {
   mode = "solo"; myRole = "A"; oppHere = true; oppName = info.name; oppLand = info.land;
   ai = createAI(TO.levelFor(DT.cpuPlayer(duo, m.opp), m.round, LV)); oppX = 0.5;
   duoMatch = { no: m.round, key: m.key, round: T.rounds[m.key], tName: T.duoTourName };
-  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B", TO.formatFor(m.key));
+  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B", TO.formatFor(m.key, duo.long));
   marks = []; pending = []; ++resetTok;
   publish({ live: { r: m.round, key: m.key, a: 0, b: 0, opp: info.name } });
   showScreen(null); $("quit").hidden = false;
@@ -746,7 +754,7 @@ function startDuoFinal() {
   applySurface(duo.surface);
   mode = "play"; myRole = netRole; oppName = duoOther.name; oppLand = duoOther.land; oppHere = true;
   const fs = duo.id.charCodeAt(0) % 2 ? "A" : "B";                     // auf beiden Handys gleich
-  score = R.freshScore(1000 + duo.round * 10, fs, B.career.format.final);
+  score = R.freshScore(1000 + duo.round * 10, fs, R.matchFormat(duo.long, true));
   handled = new Set(); paused = false; matchStarted = true; lastHeard = performance.now();
   syncFromHost = false;                                   // beide starten mit demselben frischen Stand
   publish({ score });
@@ -822,7 +830,7 @@ function startCareerMatch(m) {
   ai = createAI(TO.opponentLevel(c, m.opp, m.roundIndex, LV, t.stronger || 0)); oppX = 0.5;
   careerMatch = { ...m, tName: T.tierTournaments[c.tier][m.ti] };
   matchStats = { aces: 0, doubleFaults: 0, longestRally: 0 };
-  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B", TO.formatFor(m.key));
+  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B", TO.formatFor(m.key, profile.settings.longMatch));
   marks = []; pending = []; ++resetTok;
   showScreen(null); $("quit").hidden = false; inGame(true);
   ball.phase = "none"; renderBoard();
@@ -895,12 +903,12 @@ $("quit").onclick = () => {
   if (mode === "solo" && !careerMatch && !duoMatch && (score.win || !score.seq)) { leave(); return; }
   if (playing() && !score.win) { const s2 = { ...JSON.parse(JSON.stringify(score)), seq: score.seq + 1, win: other(myRole) }; applyScore(s2, true); }
 };
-$("againBtn").onclick = () => (mode === "machine" ? startMachine() : applyScore(R.freshScore(score.seq + 1, other(score.fs || "A")), true));
+$("againBtn").onclick = () => (mode === "machine" ? startMachine() : applyScore(R.freshScore(score.seq + 1, other(score.fs || "A"), { gw: score.gw, sw: 1 }), true));
 $("soloBtn").onclick = () => {
   audioInit(); saveName(); goFullscreen();
   mode = "solo"; myRole = "A"; oppName = T.computer; oppLand = "NR"; oppHere = true;
   ai = createAI(LV); oppX = 0.5;
-  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B"); marks = [];
+  score = R.freshScore(0, Math.random() < 0.5 ? "A" : "B", fmt()); marks = [];
   showScreen(null); $("quit").hidden = false; inGame(true);
   ball.phase = "none"; renderBoard();
   beginWithIntro(T.quickEvent(LV.name));
@@ -939,7 +947,8 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.033); last = now;
   // Testmodus: mehrere Schritte pro Bild, damit ein automatisch gespielter Satz schnell durchläuft
-  for (let k = 0; k < (test.pause || paused ? 0 : test.speed); k++) { try { if (test.auto) autopilot(dt); step(dt); } catch (e) { console.error(e); } }
+  syncOptBtn();
+  for (let k = 0; k < (test.pause || paused || (optOpen && mode !== "play") ? 0 : test.speed); k++) { try { if (test.auto) autopilot(dt); step(dt); } catch (e) { console.error(e); } }
   draw();
   requestAnimationFrame(frame);
 }
@@ -1213,14 +1222,18 @@ function drawBall(showOpp) {
   circle(x + 0.006 + h * 0.15, gy + 0.008, C.ballR * 0.95, "rgba(0,0,0,.28)");    // Schatten auf dem Boden
   if (sup && ph === "fly") { ctx.globalAlpha = 0.35; circle(x, by, r * 1.8, css("--super")); ctx.globalAlpha = 1; }
   circle(x, by, r, css("--ball"));
+  // Nähte; bei Spin drehen sie sich (Richtung = Kurve, auf diesem Bildschirm gespiegelt, wenn der Gegner schlug)
+  const spin = ph === "fly" && ball.shot.cv && ball.shot.kind === "rally" && !reducedMotion.matches ? ball.shot.cv * (ball.from === myRole ? 1 : -1) : 0;
+  ctx.save(); ctx.translate(x, by); if (spin) ctx.rotate(ball.t * spin * 160);
   ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 0.004;
-  ctx.beginPath(); ctx.arc(x - r * 1.15, by, r * 0.9, -0.9, 0.9); ctx.stroke();
-  ctx.beginPath(); ctx.arc(x + r * 1.15, by, r * 0.9, Math.PI - 0.9, Math.PI + 0.9); ctx.stroke();
+  ctx.beginPath(); ctx.arc(-r * 1.15, 0, r * 0.9, -0.9, 0.9); ctx.stroke();
+  ctx.beginPath(); ctx.arc(r * 1.15, 0, r * 0.9, Math.PI - 0.9, Math.PI + 0.9); ctx.stroke();
+  ctx.restore();
   if (ring >= 0) {
     // Ring um den Ball: am kleinsten im idealen Moment
     const W1 = (serveNo === 1 ? B.serve.first : B.serve.second);
     ctx.lineWidth = 0.006;
-    ctx.strokeStyle = ring <= W1.perfect ? css("--ball") : ring <= W1.good ? "rgba(255,255,255,.9)" : "rgba(255,255,255,.35)";
+    ctx.strokeStyle = serveNo === 1 && ring <= B.serve.ace ? css("--super") : ring <= W1.perfect ? css("--ball") : ring <= W1.good ? "rgba(255,255,255,.9)" : "rgba(255,255,255,.35)";
     ctx.beginPath(); ctx.arc(x, by, r + 0.012 + ring * 0.09, 0, Math.PI * 2); ctx.stroke();
   }
 }
@@ -1425,6 +1438,27 @@ function syncOnline(delay = 500) {
 }
 if (ON.ensureIdentity(profile)) saveProfile(profile);
 syncOnline(3000);
+
+// ---------- Optionen während des Spiels ----------
+// Allein (gegen den Computer, Ballmaschine, Karriere) hält das Spiel an; zu zweit läuft es weiter.
+let optOpen = false;
+const OPT = { optSound: "sound", optVoice: "voice", optVibration: "vibration", optLefty: "lefty", optSwipe: "swipe" };
+$("optBtn").setAttribute("aria-label", T.optAria);
+function syncOptBtn() { const h = !playing(); if ($("optBtn").hidden !== h) $("optBtn").hidden = h; if (h && optOpen) closeOptions(); }
+function openOptions() {
+  if (!playing()) return;
+  optOpen = true;
+  Object.entries(OPT).forEach(([id, k]) => { $(id).checked = profile.settings[k]; });
+  $("optNote").textContent = mode === "play" ? T.optRunning : T.optPaused;
+  $("optSheet").hidden = false;
+}
+function closeOptions() { optOpen = false; $("optSheet").hidden = true; last = performance.now(); }
+$("optBtn").addEventListener("pointerdown", e => e.stopPropagation());
+$("optBtn").onclick = () => { audioInit(); openOptions(); };
+$("optClose").onclick = closeOptions;
+Object.entries(OPT).forEach(([id, k]) => $(id).addEventListener("change", () => {
+  profile.settings[k] = $(id).checked; saveProfile(profile); applySettings(profile);
+}));
 
 function applySettings(p) {
   setSound(p.settings.sound); setVoice(p.settings.voice); setVibration(p.settings.vibration);
