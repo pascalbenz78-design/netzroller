@@ -89,6 +89,21 @@ export const crowd = {
       noiseBurst({ when, dur: 0.05 + Math.random() * 0.04, vol: 0.05 + Math.random() * 0.06, type: "bandpass", freq: 1200 + Math.random() * 1800, q: 1.2, attack: 0.003 });
     }
   },
+  /** Frenetisch: mehrere Jubelwellen, dichter, langer Applaus und Pfiffe (sehr lange Ballwechsel). */
+  frenzy() {
+    if (!ac || !soundOn) return;
+    crowd.cheer(1.6);
+    noiseBurst({ when: 1.2, dur: 3.2, vol: 0.22, type: "bandpass", freq: 700, freqEnd: 900, q: 1.3, attack: 0.3 });
+    const n = 260, len = 5.5;
+    for (let i = 0; i < n; i++) {
+      const when = 0.2 + Math.random() * len * (0.6 + 0.4 * Math.random());
+      noiseBurst({ when, dur: 0.05 + Math.random() * 0.04, vol: 0.05 + Math.random() * 0.07, type: "bandpass", freq: 1100 + Math.random() * 2000, q: 1.2, attack: 0.003 });
+    }
+    for (let i = 0; i < 5; i++) {                              // Pfiffe
+      const when = 0.3 + Math.random() * 3.5, f = 2400 + Math.random() * 900;
+      noiseBurst({ when, dur: 0.35 + Math.random() * 0.3, vol: 0.06, type: "bandpass", freq: f, freqEnd: f * 1.18, q: 28, attack: 0.04 });
+    }
+  },
   /** Jubel: breites Rauschen mit Vokal-Färbung, dazu Applaus. */
   cheer(strength = 1) {
     noiseBurst({ dur: 1.6 * strength + 0.6, vol: 0.18 * strength + 0.05, type: "bandpass", freq: 650, freqEnd: 800, q: 1.5, attack: 0.15 });

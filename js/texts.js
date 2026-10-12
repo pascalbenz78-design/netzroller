@@ -174,7 +174,10 @@ export const T = {
   duoClose: "Turnier abschliessen", duoLeave: "Turnier verlassen",
   // Lange Ballwechsel
   rallyStrokes: "Schläge", rallyMilestone: n => `${n} Schläge!`, rallyRecordLive: "Rekord!",
-  rallyNewRecord: n => `Neuer Rekord: ${n} Schläge!`, rallyLongest: n => `Längster Ballwechsel: ${n} Schläge`,
+  rallyNewRecord: n => `Neuer Rekord: ${n} Schläge!`, rallyBest: n => `Rekord ${n}`,
+  rallyFrenzy: n => `Wahnsinn! ${n} Schläge!`, rallyBig: n => `Riesen-Ballwechsel: ${n} Schläge!`,
+  sayRallyRecord: n => `Neuer Rekord: ${n} Schläge`, sayRallyFrenzy: n => `Unglaublich! ${n} Schläge`,
+  overRecord: n => `Neuer Rekord: ${n} Schläge`, rallyLongest: n => `Längster Ballwechsel: ${n} Schläge`,
   ralliesTitle: "Längste Ballwechsel", ralliesEmpty: "Noch keine langen Ballwechsel. Ab 5 Schlägen steht er hier.",
   rallyMeta: (opp, date) => (opp ? `gegen ${opp}` : "") + (opp && date ? " · " : "") + date,
   optTitle: "Optionen", optClose: "Weiterspielen", optAria: "Optionen",

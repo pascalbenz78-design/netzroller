@@ -53,7 +53,7 @@ let ai = null, aiTimer = 0, aiErr = 0;
 let mySupers = B.supersPerRally, armed = false;
 let marks = [], flashes = [], trail = [], netShake = 0, resetTok = 0, pending = [], gameTime = 0;
 let rallyStrokes = 0, hawk = null, activeIntro = null;
-let matchLongest = 0, rallyHideAt = 0;                        // längster Ballwechsel im Match, Ausblenden des Zählers
+let matchLongest = 0, matchRecord = 0, rallyHideAt = 0;                        // längster Ballwechsel im Match, Ausblenden des Zählers
 let run = null, popups = [], fireworks = [], fwTimer = 0, machineFlash = 0;   // Ballmaschine
 // Karriere (Phase 5): laufendes Match, Belag, Statistik
 // Turnier zu zweit (Phase 6)
@@ -304,7 +304,7 @@ function applyScore(s2, mine) {
   if (ball.phase !== "dead") ball.phase = "none";
   armed = false;
   renderBoard();
-  if (rallyStrokes >= B.crowd.applauseFrom && s2.seq > prev.seq) crowd.applause(Math.min(1.6, rallyStrokes / B.crowd.applauseFrom));
+  if (rallyStrokes >= B.crowd.applauseFrom && rallyStrokes < B.rally.bigFrom && s2.seq > prev.seq) crowd.applause(Math.min(1.6, rallyStrokes / B.crowd.applauseFrom));
   rallyDone(s2.seq > prev.seq);
   rallyStrokes = 0;
   if (s2.win) {
@@ -358,9 +358,11 @@ function prepareServe() {
 // ---------- Lange Ballwechsel ----------
 const bestRally = () => ((profile.rallies || [])[0] || { n: 0 }).n;
 function showRallyCount(n, label, record, done) {
+  const best = bestRally();
   $("rallyN").textContent = n; $("rallyLabel").textContent = label;
+  $("rallyBest").textContent = !record && best >= B.rally.celebrateFrom ? T.rallyBest(best) : "";   // Ziel: dein Rekord
   const el = $("rallyCount"); el.hidden = false;
-  el.classList.toggle("record", !!record); el.classList.toggle("done", !!done);
+  el.classList.toggle("record", !!record); el.classList.toggle("done", !!done); el.classList.toggle("big", n >= B.rally.bigFrom);
 }
 function hideRallyCount() { $("rallyCount").hidden = true; rallyHideAt = 0; }
 
@@ -372,7 +374,7 @@ function rallyTick() {
   rallyHideAt = 0;
   showRallyCount(n, record ? T.rallyRecordLive : T.rallyStrokes, record, false);
   if (record && n === Math.max(best + 1, RB.celebrateFrom)) { banner(T.rallyRecordLive, true); crowd.murmur(); return true; }
-  if (RB.milestones.includes(n)) { banner(T.rallyMilestone(n)); crowd.murmur(); return true; }
+  if (RB.milestones.includes(n)) { banner(T.rallyMilestone(n), n >= RB.bigFrom); crowd.murmur(); if (n >= RB.frenzyFrom) crowd.applause(0.8); return true; }
   return false;
 }
 
@@ -382,15 +384,23 @@ function rallyDone(counted) {
   if (mode === "machine" || !counted || n < RB.showFrom) { hideRallyCount(); return; }
   matchLongest = Math.max(matchLongest, n);
   const record = n > bestRally() && n >= RB.celebrateFrom;
+  if (record) matchRecord = n;
   if (n >= RB.keepFrom) {
     profile.rallies = [...(profile.rallies || []), { n, opp: oppName, date: today() }].sort((a, b) => b.n - a.n).slice(0, RB.keep);
     saveProfile(profile);
   }
   showRallyCount(n, record ? T.rallyRecordLive : T.rallyStrokes, record, true);
   rallyHideAt = performance.now() + RB.holdMs;
-  if (record) { crowd.cheer(1.2); buzz([30, 30, 60]); later(0.45, () => banner(T.rallyNewRecord(n), true)); }
+  // Publikum je nach Länge: ab frenzyFrom frenetisch, ab bigFrom Jubel, bei Rekord mindestens Jubel
+  if (n >= RB.frenzyFrom) crowd.frenzy();
+  else if (n >= RB.bigFrom || record) crowd.cheer(record ? 1.3 : 1);
+  if (record) buzz([30, 30, 60]);
+  const text = record ? T.rallyNewRecord(n) : n >= RB.frenzyFrom ? T.rallyFrenzy(n) : n >= RB.bigFrom ? T.rallyBig(n) : "";
+  if (text) later(0.45, () => banner(text, true));
+  const speech = record ? T.sayRallyRecord(n) : n >= RB.frenzyFrom ? T.sayRallyFrenzy(n) : "";
+  if (speech) later(RB.sayAfter, () => say(speech));            // nach dem Ruf des Spielstands
 }
-const longestNote = () => (matchLongest >= B.rally.showFrom ? " · " + T.rallyLongest(matchLongest) : "");
+const longestNote = () => (matchLongest >= B.rally.showFrom ? " · " + T.rallyLongest(matchLongest) : "") + (matchRecord ? " · " + T.overRecord(matchRecord) : "");
 
 /** Spielstand, wie ihn der Schiedsrichter ausruft: «Fünfzehn null», «Dreissig beide», «Vorteil Pascal». */
 function pointSpeech(s2) {
@@ -671,7 +681,7 @@ function startMatch() {
 
 /** Match-Intro mit Münzwurf, danach der erste Aufschlag (ausser es kam schon ein Schlag an). */
 function beginWithIntro(event) {
-  matchLongest = 0; hideRallyCount();
+  matchLongest = 0; matchRecord = 0; hideRallyCount();
   const first = R.server(score) === myRole ? "me" : "opp";
   activeIntro = matchIntro({
     me: { name: myName || T.you, land: profile.land, isYou: !myName }, opp: { name: oppName, land: oppLand },

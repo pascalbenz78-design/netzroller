@@ -146,6 +146,13 @@ button:disabled { opacity: .45; cursor: default; }
 #rallyCount.record { background: rgba(242,201,76,.92); }
 #rallyCount.record b, #rallyCount.record span { color: #1a1a1a; }
 #rallyCount.done { opacity: .85; }
+#rallyCount #rallyBest { font-size: 9px; opacity: .8; }
+#rallyCount #rallyBest:empty { display: none; }
+#rallyCount.big b { font-size: 34px; color: var(--super); }
+#rallyCount.record.big b { color: #1a1a1a; }
+#rallyCount.big:not(.done) { animation: rallyPulse .6s ease-in-out infinite alternate; }
+@keyframes rallyPulse { to { transform: translateY(calc(-100% - 14px)) scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { #rallyCount.big:not(.done) { animation: none; } }
 #turn { position: fixed; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px; padding: 16px; background: var(--board); text-align: center; }
 #turn .big { font-size: 30px; }
 @media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) { #turn.active { display: flex; } }
@@ -328,7 +335,7 @@ ol.hs .hs-name canvas.flag.sm { display: inline-block; vertical-align: -2px; }
   <div id="stage">
     <canvas id="cv"></canvas>
     <div id="banner"></div>
-    <div id="rallyCount" hidden aria-live="polite"><b id="rallyN">0</b><span id="rallyLabel"></span></div>
+    <div id="rallyCount" hidden aria-live="polite"><b id="rallyN">0</b><span id="rallyLabel"></span><span id="rallyBest"></span></div>
     <button class="super" id="superBtn" hidden aria-pressed="false"><span data-t="superBtn">Super</span><b id="superN">2</b></button>
 
     <!-- Hauptmenü -->

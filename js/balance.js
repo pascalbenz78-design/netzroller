@@ -107,8 +107,10 @@ export const BALANCE = {
   crowd: { applauseFrom: 8 },      // Applaus ab so vielen Schlägen im Ballwechsel
   // Lange Ballwechsel anzeigen: Zähler ab showFrom Schlägen (Aufschlag mitgezählt), Banner bei den Meilensteinen,
   // gespeichert werden die keep längsten ab keepFrom Schlägen; ein neuer Rekord wird ab celebrateFrom gefeiert.
-  // Die Anzeige nach dem Punkt bleibt holdMs Millisekunden stehen.
-  rally: { showFrom: 5, milestones: [10, 15, 20, 30, 40, 50, 75, 100], keep: 5, keepFrom: 5, celebrateFrom: 10, holdMs: 2600 },
+  // Die Anzeige nach dem Punkt bleibt holdMs Millisekunden stehen. Ab bigFrom pulsiert der Zähler und das Publikum
+  // jubelt nach dem Punkt, ab frenzyFrom tobt es (frenetischer Applaus mit Pfiffen) und der Schiedsrichter sagt es an.
+  rally: { showFrom: 5, milestones: [10, 15, 20, 30, 40, 50, 75, 100], keep: 5, keepFrom: 5, celebrateFrom: 10, holdMs: 2600,
+           bigFrom: 30, frenzyFrom: 50, sayAfter: 1.2 },
 
   // Ballmaschine (Endlos-Modus): wird mit jedem Rückschlag schneller, ohne Obergrenze
   machine: {
