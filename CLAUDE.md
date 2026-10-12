@@ -88,9 +88,9 @@ Für zwei Spieler: zwei Tabs, einer eröffnet, einer tritt mit dem Code bei, in 
 | 3 | Ballmaschine (Endlos-Modus, Highscore) | abgenommen |
 | 4 | Stabile Verbindung (Herzschlag, Pause, Wiederverbinden) | abgenommen |
 | 5 | Karriere (Tour, Turniere, Rangliste) | abgenommen |
-| 6 | Turnier zu zweit, Weltrangliste mit Supabase | **fertig, wartet auf Abnahme** (Supabase eingerichtet) |
-| 7 | Karriere in Stufen (Aargau → Schweiz → Europa → Welt), zwei Gewinnsätze | **fertig, wartet auf Abnahme** |
-| 8 | Asse, schnellere lange Ballwechsel, Spin, Gewinn-Games statt Sätze, Verlassen mit Rückfrage, Optionen im Spiel, Ballwechsel-Rekorde | **fertig, wartet auf Abnahme** |
+| 6 | Turnier zu zweit, Weltrangliste mit Supabase | abgenommen |
+| 7 | Karriere in Stufen (Aargau → Schweiz → Europa → Welt), zwei Gewinnsätze | abgenommen |
+| 8 | Asse, schnellere lange Ballwechsel, Spin, Gewinn-Games statt Sätze, Verlassen mit Rückfrage, Optionen im Spiel, Ballwechsel-Rekorde | abgenommen |
 
 ### Phase 1 im Detail
 
@@ -164,7 +164,7 @@ Erledigt:
 
 Supabase eingerichtet (Projekt «netzroller», Region Zürich, Adresse und öffentlicher Schlüssel in `js/config.js`). Getestet gegen die echte Datenbank: Lesen erlaubt, Prüfsummen nicht lesbar, direktes Schreiben gesperrt; zwei Geräte (localhost und 127.0.0.1) mit Karriere und Ballmaschine erscheinen in beiden Ansichten der Weltrangliste.
 
-Offen: Test auf zwei echten Handys.
+Abgenommen von Pascal am 12.10.2026. Testeinträge «Pascal» und «Anna» aus der Weltrangliste gelöscht (auf Wunsch von Pascal); die Test-Browser nehmen nicht mehr an der Weltrangliste teil.
 
 ### Phase 8 im Detail (Rückmeldung von Pascal nach Phase 7)
 
