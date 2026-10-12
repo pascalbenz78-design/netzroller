@@ -33,7 +33,7 @@ export const T = {
 
   // Hauptmenü
   hello: name => `Hallo, ${name}`, helloAnon: "Hallo! Deinen Namen setzt du in den Einstellungen.",
-  modeQuick: "Schnelles Spiel", modeQuickSub: "Kurzsatz gegen den Computer",
+  modeQuick: "Schnelles Spiel", modeQuickSub: "Kurzes Match gegen den Computer",
   modeDuo: "Zu zweit", modeDuoSub: "Zwei Handys, ein Code",
   modeMachine: "Ballmaschine", modeCareer: "Karriere", modeDuoTour: "Turnier zu zweit", modeRanking: "Rangliste",
   soon: "bald",
@@ -172,6 +172,11 @@ export const T = {
   duoFinalReady: who => `Final gegen ${who}: Bereit`, duoFinalWait: who => `Warte, bis ${who} bereit ist …`,
   duoFinalEvent: "Turnier zu zweit · Final",
   duoClose: "Turnier abschliessen", duoLeave: "Turnier verlassen",
+  // Lange Ballwechsel
+  rallyStrokes: "Schläge", rallyMilestone: n => `${n} Schläge!`, rallyRecordLive: "Rekord!",
+  rallyNewRecord: n => `Neuer Rekord: ${n} Schläge!`, rallyLongest: n => `Längster Ballwechsel: ${n} Schläge`,
+  ralliesTitle: "Längste Ballwechsel", ralliesEmpty: "Noch keine langen Ballwechsel. Ab 5 Schlägen steht er hier.",
+  rallyMeta: (opp, date) => (opp ? `gegen ${opp}` : "") + (opp && date ? " · " : "") + date,
   optTitle: "Optionen", optClose: "Weiterspielen", optAria: "Optionen",
   optPaused: "Das Spiel ist angehalten.", optRunning: "Zu zweit läuft das Spiel weiter.",
   duoLeaveSure: "Turnier wirklich verlassen? Die Verbindung wird getrennt, das Turnier ist für euch beide vorbei.",

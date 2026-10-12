@@ -53,6 +53,7 @@ let ai = null, aiTimer = 0, aiErr = 0;
 let mySupers = B.supersPerRally, armed = false;
 let marks = [], flashes = [], trail = [], netShake = 0, resetTok = 0, pending = [], gameTime = 0;
 let rallyStrokes = 0, hawk = null, activeIntro = null;
+let matchLongest = 0, rallyHideAt = 0;                        // längster Ballwechsel im Match, Ausblenden des Zählers
 let run = null, popups = [], fireworks = [], fwTimer = 0, machineFlash = 0;   // Ballmaschine
 // Karriere (Phase 5): laufendes Match, Belag, Statistik
 // Turnier zu zweit (Phase 6)
@@ -204,9 +205,10 @@ function launch(sh, from) {
   if (sh.serve) serveNo = sh.serve;
   rallyStrokes++;
   if (activeIntro && from !== myRole) activeIntro.close();
+  const milestone = rallyTick();
   const p = display(0);
   flashes.push({ x: p.x, y: p.v * D, t: 0, sup: sh.sup });
-  if (sh.sup) { banner(T.superShot, true); sfx.superHit(); buzz(35); } else { sfx.hit(sh.s1); if (from === myRole) buzz(18); }
+  if (sh.sup) { if (!milestone) banner(T.superShot, true); sfx.superHit(); buzz(35); } else { sfx.hit(sh.s1); if (from === myRole) buzz(18); }
   if (from === myRole && mode === "play") {
     shotN++;
     publish({ shot: { ...roundShot(sh), seq: score.seq, n: shotN, ep: epoch }, toss: null });
@@ -303,6 +305,7 @@ function applyScore(s2, mine) {
   armed = false;
   renderBoard();
   if (rallyStrokes >= B.crowd.applauseFrom && s2.seq > prev.seq) crowd.applause(Math.min(1.6, rallyStrokes / B.crowd.applauseFrom));
+  rallyDone(s2.seq > prev.seq);
   rallyStrokes = 0;
   if (s2.win) {
     announce(s2.win === myRole ? T.setYou : T.setOpp(oppName), T.sayMatch(nameOf(s2.win)));
@@ -351,6 +354,43 @@ function prepareServe() {
   }
   renderBoard();
 }
+
+// ---------- Lange Ballwechsel ----------
+const bestRally = () => ((profile.rallies || [])[0] || { n: 0 }).n;
+function showRallyCount(n, label, record, done) {
+  $("rallyN").textContent = n; $("rallyLabel").textContent = label;
+  const el = $("rallyCount"); el.hidden = false;
+  el.classList.toggle("record", !!record); el.classList.toggle("done", !!done);
+}
+function hideRallyCount() { $("rallyCount").hidden = true; rallyHideAt = 0; }
+
+/** Ein Schlag mehr im Ballwechsel: Zähler, Meilenstein, Rekord. Gibt true zurück, wenn ein Banner kam. */
+function rallyTick() {
+  const n = rallyStrokes, RB = B.rally;
+  if (mode === "machine" || !playing() || n < RB.showFrom) return false;
+  const best = bestRally(), record = n > best && n >= RB.celebrateFrom;
+  rallyHideAt = 0;
+  showRallyCount(n, record ? T.rallyRecordLive : T.rallyStrokes, record, false);
+  if (record && n === Math.max(best + 1, RB.celebrateFrom)) { banner(T.rallyRecordLive, true); crowd.murmur(); return true; }
+  if (RB.milestones.includes(n)) { banner(T.rallyMilestone(n)); crowd.murmur(); return true; }
+  return false;
+}
+
+/** Ballwechsel vorbei: merken, Rekord feiern, Zähler noch kurz stehen lassen. */
+function rallyDone(counted) {
+  const n = rallyStrokes, RB = B.rally;
+  if (mode === "machine" || !counted || n < RB.showFrom) { hideRallyCount(); return; }
+  matchLongest = Math.max(matchLongest, n);
+  const record = n > bestRally() && n >= RB.celebrateFrom;
+  if (n >= RB.keepFrom) {
+    profile.rallies = [...(profile.rallies || []), { n, opp: oppName, date: today() }].sort((a, b) => b.n - a.n).slice(0, RB.keep);
+    saveProfile(profile);
+  }
+  showRallyCount(n, record ? T.rallyRecordLive : T.rallyStrokes, record, true);
+  rallyHideAt = performance.now() + RB.holdMs;
+  if (record) { crowd.cheer(1.2); buzz([30, 30, 60]); later(0.45, () => banner(T.rallyNewRecord(n), true)); }
+}
+const longestNote = () => (matchLongest >= B.rally.showFrom ? " · " + T.rallyLongest(matchLongest) : "");
 
 /** Spielstand, wie ihn der Schiedsrichter ausruft: «Fünfzehn null», «Dreissig beide», «Vorteil Pascal». */
 function pointSpeech(s2) {
@@ -413,7 +453,7 @@ function showOver() {
   $("overList").hidden = true; $("againBtn").textContent = T.again;
   const won = score.win === myRole;
   $("overTitle").textContent = won ? T.won : T.lost;
-  $("overText").textContent = T.overText(score.g[myRole], score.g[other(myRole)], oppName, LV.name);
+  $("overText").textContent = T.overText(score.g[myRole], score.g[other(myRole)], oppName, LV.name) + longestNote();
   showScreen("over");
 }
 
@@ -631,6 +671,7 @@ function startMatch() {
 
 /** Match-Intro mit Münzwurf, danach der erste Aufschlag (ausser es kam schon ein Schlag an). */
 function beginWithIntro(event) {
+  matchLongest = 0; hideRallyCount();
   const first = R.server(score) === myRole ? "me" : "opp";
   activeIntro = matchIntro({
     me: { name: myName || T.you, land: profile.land, isYou: !myName }, opp: { name: oppName, land: oppLand },
@@ -779,7 +820,7 @@ function duoMatchOver() {
   const label = duoMatch ? duoMatch.round : T.rounds.F;
   $("overList").hidden = true; $("againBtn").hidden = true;
   $("overTitle").textContent = won ? T.matchWon : T.matchLost;
-  $("overText").textContent = (won ? T.matchWonText : T.matchLostText)(label, oppName);
+  $("overText").textContent = (won ? T.matchWonText : T.matchLostText)(label, oppName) + longestNote();
   $("leaveBtn").textContent = T.continueBtn;
   duoReturn = true;
   showScreen("over");
@@ -843,7 +884,7 @@ function careerOver() {
   if (won) crowd.cheer(1); else crowd.applause(0.4);
   $("overList").hidden = true; $("againBtn").hidden = true;
   $("overTitle").textContent = won ? T.matchWon : T.matchLost;
-  $("overText").textContent = (won ? T.matchWonText : T.matchLostText)(careerMatch.round, oppName) + (fresh.length ? " · " + T.newColor(fresh.join(", ")) : "");
+  $("overText").textContent = (won ? T.matchWonText : T.matchLostText)(careerMatch.round, oppName) + longestNote() + (fresh.length ? " · " + T.newColor(fresh.join(", ")) : "");
   $("leaveBtn").textContent = T.continueBtn;
   careerReturn = true;
   showScreen("over");
@@ -864,7 +905,7 @@ async function leave() {
   careerMatch = null; matchStats = null; matchOpts = {}; surfaceCol = null; LV = B.levels[level];
   duo = null; duoMatch = null; duoFinal = false; duoReturn = false; duoLive = null; duoReady = false; duoClosed = false; duoNote = "";
   tourWanted = false; lastTres = undefined; lastCheer = undefined; oppFready = ""; duoOther = null;
-  paused = false; matchStarted = false; $("netPause").hidden = true;
+  paused = false; matchStarted = false; $("netPause").hidden = true; hideRallyCount();
   try { localStorage.removeItem("nr-lastgame"); } catch (e) {}
   $("quit").hidden = true; showScreen("menu"); inGame(false);
   score = R.freshScore(0); serveNo = 1; armed = false; marks = []; updateSuperBtn();
@@ -901,7 +942,7 @@ $("leaveBtn").onclick = async () => {
 $("quit").onclick = () => {
   if (mode === "machine") { if (run && !run.over) { pending = []; ++resetTok; endRun(); } else leave(); return; }
   if (mode === "solo" && !careerMatch && !duoMatch && (score.win || !score.seq)) { leave(); return; }
-  if (playing() && !score.win) { const s2 = { ...JSON.parse(JSON.stringify(score)), seq: score.seq + 1, win: other(myRole) }; applyScore(s2, true); }
+  if (playing() && !score.win) { rallyStrokes = 0; const s2 = { ...JSON.parse(JSON.stringify(score)), seq: score.seq + 1, win: other(myRole) }; applyScore(s2, true); }
 };
 $("againBtn").onclick = () => (mode === "machine" ? startMachine() : applyScore(R.freshScore(score.seq + 1, other(score.fs || "A"), { gw: score.gw, sw: 1 }), true));
 $("soloBtn").onclick = () => {
@@ -948,6 +989,7 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.033); last = now;
   // Testmodus: mehrere Schritte pro Bild, damit ein automatisch gespielter Satz schnell durchläuft
   syncOptBtn();
+  if (rallyHideAt && now >= rallyHideAt) hideRallyCount();
   for (let k = 0; k < (test.pause || paused || (optOpen && mode !== "play") ? 0 : test.speed); k++) { try { if (test.auto) autopilot(dt); step(dt); } catch (e) { console.error(e); } }
   draw();
   requestAnimationFrame(frame);

@@ -105,6 +105,10 @@ export const BALANCE = {
   // Hawk-Eye: knapp = Aufsprung näher an der Linie als gap × Ballradius (2 = ein Balldurchmesser)
   hawk: { gap: 2, dur: 1.7, durReduced: 0.8 },
   crowd: { applauseFrom: 8 },      // Applaus ab so vielen Schlägen im Ballwechsel
+  // Lange Ballwechsel anzeigen: Zähler ab showFrom Schlägen (Aufschlag mitgezählt), Banner bei den Meilensteinen,
+  // gespeichert werden die keep längsten ab keepFrom Schlägen; ein neuer Rekord wird ab celebrateFrom gefeiert.
+  // Die Anzeige nach dem Punkt bleibt holdMs Millisekunden stehen.
+  rally: { showFrom: 5, milestones: [10, 15, 20, 30, 40, 50, 75, 100], keep: 5, keepFrom: 5, celebrateFrom: 10, holdMs: 2600 },
 
   // Ballmaschine (Endlos-Modus): wird mit jedem Rückschlag schneller, ohne Obergrenze
   machine: {

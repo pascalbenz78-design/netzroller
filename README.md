@@ -80,6 +80,7 @@ Wie im Tennis: 15, 30, 40, Einstand, Vorteil. Es gibt keine Sätze: Wer zuerst *
 - **Ass:** Triffst du beim ersten Aufschlag den höchsten Punkt ganz genau (der Ring leuchtet dann in der Super-Farbe), wird der Aufschlag besonders schnell und genau. Stellst du dich dazu ganz nach aussen, ist er meist unerreichbar. Alle anderen Bälle im Feld bleiben erreichbar.
 - **Spin:** Bewegst du den Schläger im Moment des Treffens schnell zur Seite, bekommt der Ball Effekt: Er fliegt eine Kurve und springt nach dem Aufsprung zur anderen Seite weg. Wo er aufspringt, ändert sich dadurch nicht. Du erkennst Spin an den drehenden Nähten.
 - **Lange Ballwechsel** werden ab dem 8. Schlag mit jedem Schlag schneller, damit sie nicht ewig dauern.
+- **Schläge zählen:** Ab dem 5. Schlag zeigt ein Zähler links über dem Netz, wie lange der Ballwechsel schon dauert. Bei 10, 15, 20 … Schlägen raunt das Publikum. Übertriffst du deinen Rekord, wird der Zähler gold. Deine 5 längsten Ballwechsel stehen unter «Rangliste → Auf diesem Gerät», der längste eines Matches auch auf dem Endbildschirm.
 
 ### Optionen während des Spiels
 

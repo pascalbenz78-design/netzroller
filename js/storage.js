@@ -7,7 +7,7 @@ const CODE_PREFIX = "NR1.";
 export const DEFAULT_SETTINGS = { sound: true, voice: true, vibration: true, lefty: false, swipe: true, intro: true, longMatch: false };
 
 function defaults() {
-  return { v: 1, name: "", land: "CH", level: 1, settings: { ...DEFAULT_SETTINGS }, introSeen: "", highscores: [], career: null, online: null };
+  return { v: 1, name: "", land: "CH", level: 1, settings: { ...DEFAULT_SETTINGS }, introSeen: "", highscores: [], rallies: [], career: null, online: null };
 }
 
 /** Übernimmt nur bekannte Felder mit gültigen Werten. */
@@ -22,6 +22,7 @@ function sanitize(src) {
   }
   if (typeof src.introSeen === "string") p.introSeen = src.introSeen.slice(0, 10);
   if (Array.isArray(src.highscores)) p.highscores = cleanHighscores(src.highscores);
+  if (Array.isArray(src.rallies)) p.rallies = cleanRallies(src.rallies);
   if (src.career && typeof src.career === "object") p.career = src.career;   // genauer geprüft in tour.validCareer
   if (src.online && typeof src.online === "object") p.online = cleanOnline(src.online);
   return p;
@@ -37,6 +38,19 @@ function cleanOnline(o) {
   if (o.pendingCareer && typeof o.pendingCareer === "object") r.pendingCareer = o.pendingCareer;
   if (typeof o.registered === "string") r.registered = o.registered;
   return r;
+}
+
+/** Längste Ballwechsel: Schläge, Gegner, Datum; höchstens 5, absteigend. */
+function cleanRallies(list) {
+  return list
+    .filter(e => e && typeof e === "object" && Number.isInteger(e.n) && e.n > 0 && e.n < 10000)
+    .map(e => ({
+      n: e.n,
+      opp: String(e.opp || "").replace(/[^\p{L}\p{N} ._-]/gu, "").trim().slice(0, 20),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(e.date) ? e.date : "",
+    }))
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 5);
 }
 
 /** Ballmaschine-Highscores: nur gültige Einträge, höchstens 10, absteigend. */
@@ -75,8 +89,8 @@ function toB64(str) { return btoa(unescape(encodeURIComponent(str))).replace(/\+
 function fromB64(b) { b = b.replace(/-/g, "+").replace(/_/g, "/"); while (b.length % 4) b += "="; return decodeURIComponent(escape(atob(b))); }
 
 export function exportCode(p) {
-  const { name, land, level, settings, highscores, career, online } = p;
-  return CODE_PREFIX + toB64(JSON.stringify({ v: 1, name, land, level, settings, highscores, career, online }));
+  const { name, land, level, settings, highscores, rallies, career, online } = p;
+  return CODE_PREFIX + toB64(JSON.stringify({ v: 1, name, land, level, settings, highscores, rallies, career, online }));
 }
 
 /** Liest einen Code; wirft einen Fehler, wenn er nicht passt. Gibt ein vollständiges Profil zurück. */

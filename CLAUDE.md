@@ -90,7 +90,7 @@ Für zwei Spieler: zwei Tabs, einer eröffnet, einer tritt mit dem Code bei, in 
 | 5 | Karriere (Tour, Turniere, Rangliste) | abgenommen |
 | 6 | Turnier zu zweit, Weltrangliste mit Supabase | **fertig, wartet auf Abnahme** (Supabase eingerichtet) |
 | 7 | Karriere in Stufen (Aargau → Schweiz → Europa → Welt), zwei Gewinnsätze | **fertig, wartet auf Abnahme** |
-| 8 | Asse, schnellere lange Ballwechsel, Spin, Gewinn-Games statt Sätze, Verlassen mit Rückfrage, Optionen im Spiel | **fertig, wartet auf Abnahme** |
+| 8 | Asse, schnellere lange Ballwechsel, Spin, Gewinn-Games statt Sätze, Verlassen mit Rückfrage, Optionen im Spiel, Ballwechsel-Rekorde | **fertig, wartet auf Abnahme** |
 
 ### Phase 1 im Detail
 
@@ -175,6 +175,7 @@ Erledigt:
 - Keine Sätze mehr: 2 Gewinn-Games, Final 3; Einstellung «Längere Matches» (3, Final 4); Statuszeile zweizeilig auf dem Handy.
 - Turnier zu zweit: «Turnier verlassen» abgesetzt und mit Rückfrage.
 - Optionen während des Spiels (Zahnrad): allein angehalten, zu zweit läuft es weiter.
+- Nachtrag (Wunsch von Pascal): Zähler für lange Ballwechsel, Meilensteine, persönlicher Rekord, Top 5 in der Rangliste und im Export-Code, längster Ballwechsel auf dem Endbildschirm. Getestet mit Autopilot im Browser (Meilensteine, Rekord gold, Liste, Endbildschirm, Ballmaschine ohne Zähler, Export/Import).
 - Getestet: Simulation (Asse, Dauer der Ballwechsel, Spin, Ballmaschine, Karriere), Zählweise in Node (2 bzw. 3 Games, Final 3 bzw. 4), schnelles Spiel mit Autopilot bis «Gewonnen 2 : 0», Optionen und Rückfrage in Handygrösse im Browser; Spiel zu zweit über zwei Tabs mit «Längere Matches» nur auf dem eröffnenden Handy (beide spielen auf 3 Games, gleicher Endstand 0 : 3).
 
 Nicht getestet: Spin- und Ass-Gefühl von Hand am Handy; Karriere-Final und Turnier zu zweit im Browser (Zählweise nur in Node geprüft).

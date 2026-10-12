@@ -103,6 +103,8 @@ export function showRanking(profile, tab, by) {
   if (!world) {
     renderHighscores($("rankList"), profile.highscores);
     $("rankEmpty").hidden = profile.highscores.length > 0;
+    renderRallies($("rallyList"), profile.rallies || []);
+    $("rallyEmpty").hidden = (profile.rallies || []).length > 0;
     return;
   }
   $("worldByCareer").setAttribute("aria-pressed", String(worldBy === "career"));
@@ -151,6 +153,20 @@ function renderWorld(profile, rows) {
   });
 }
 /** Schreibt die Top 10 in eine <ol>. Der Eintrag `mark` (gerade gespielt) wird hervorgehoben. */
+/** Längste Ballwechsel auf diesem Gerät. */
+function renderRallies(ol, list) {
+  ol.textContent = "";
+  list.forEach((e, i) => {
+    const li = document.createElement("li");
+    const rank = document.createElement("span"); rank.className = "hs-rank"; rank.textContent = String(i + 1);
+    const n = document.createElement("span"); n.className = "hs-name"; n.textContent = e.n + " " + T.rallyStrokes;
+    const meta = document.createElement("span"); meta.className = "hs-meta";
+    meta.textContent = T.rallyMeta(e.opp, e.date ? e.date.split("-").reverse().join(".") : "");
+    li.append(rank, n, meta);
+    ol.appendChild(li);
+  });
+}
+
 export function renderHighscores(ol, list, mark) {
   ol.textContent = "";
   list.forEach((e, i) => {

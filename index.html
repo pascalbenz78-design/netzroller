@@ -138,6 +138,14 @@ button:disabled { opacity: .45; cursor: default; }
 }
 #banner.show { opacity: 1; }
 #banner.hot { color: var(--super); }
+/* Zähler für lange Ballwechsel, links knapp über dem Netz (Netz bleibt frei) */
+#rallyCount { position: absolute; left: 10px; top: 50%; transform: translateY(calc(-100% - 14px)); display: flex; flex-direction: column; align-items: center;
+  padding: 6px 9px; border-radius: 8px; background: rgba(12,32,26,.72); pointer-events: none; font-family: var(--display); }
+#rallyCount b { font-size: 26px; line-height: 1; color: var(--ink); }
+#rallyCount span { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+#rallyCount.record { background: rgba(242,201,76,.92); }
+#rallyCount.record b, #rallyCount.record span { color: #1a1a1a; }
+#rallyCount.done { opacity: .85; }
 #turn { position: fixed; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px; padding: 16px; background: var(--board); text-align: center; }
 #turn .big { font-size: 30px; }
 @media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) { #turn.active { display: flex; } }
@@ -312,7 +320,7 @@ ol.hs .hs-name canvas.flag.sm { display: inline-block; vertical-align: -2px; }
     <div><span data-t="mSpeed">km/h</span><b id="mSpeed">0</b></div>
   </div>
   <div id="topbar">
-    <div id="status">Kurzsatz · wer zuerst 3 Spiele gewinnt</div>
+    <div id="status"></div>
     <button class="ghost chip" id="fsBtn" hidden data-t="fullscreen">Vollbild</button>
     <button class="ghost chip icon" id="optBtn" hidden aria-label="Optionen">⚙</button>
     <button class="ghost chip" id="quit" hidden data-t="giveUp">Aufgeben</button>
@@ -320,6 +328,7 @@ ol.hs .hs-name canvas.flag.sm { display: inline-block; vertical-align: -2px; }
   <div id="stage">
     <canvas id="cv"></canvas>
     <div id="banner"></div>
+    <div id="rallyCount" hidden aria-live="polite"><b id="rallyN">0</b><span id="rallyLabel"></span></div>
     <button class="super" id="superBtn" hidden aria-pressed="false"><span data-t="superBtn">Super</span><b id="superN">2</b></button>
 
     <!-- Hauptmenü -->
@@ -337,7 +346,7 @@ ol.hs .hs-name canvas.flag.sm { display: inline-block; vertical-align: -2px; }
           <p class="small" id="lvlHint"></p>
         </div>
         <div class="modes">
-          <button class="mode primary" id="soloBtn"><span data-t="modeQuick">Schnelles Spiel</span><small data-t="modeQuickSub">Kurzsatz gegen den Computer</small></button>
+          <button class="mode primary" id="soloBtn"><span data-t="modeQuick">Schnelles Spiel</span><small data-t="modeQuickSub">Kurzes Match gegen den Computer</small></button>
           <button class="mode" id="duoBtn"><span data-t="modeDuo">Zu zweit</span><small data-t="modeDuoSub">Zwei Handys, ein Code</small></button>
           <button class="mode" id="machineBtn"><span data-t="modeMachine">Ballmaschine</span><small data-t="modeMachineSub">Endlos, mit Highscore</small></button>
           <button class="mode" id="careerBtn"><span data-t="modeCareer">Karriere</span><small data-t="modeCareerSub">Tour mit 63 Gegnern</small></button>
@@ -505,6 +514,9 @@ ol.hs .hs-name canvas.flag.sm { display: inline-block; vertical-align: -2px; }
           <p class="small" data-t="rankingSub">Ballmaschine · deine Top 10 auf diesem Gerät</p>
           <ol class="hs" id="rankList"></ol>
           <p class="small" id="rankEmpty" data-t="rankingEmpty"></p>
+          <span class="label" data-t="ralliesTitle">Längste Ballwechsel</span>
+          <ol class="hs" id="rallyList"></ol>
+          <p class="small" id="rallyEmpty" data-t="ralliesEmpty"></p>
         </div>
         <div id="rankWorldBox" hidden>
           <div class="seg two" role="group">
@@ -530,7 +542,7 @@ ol.hs .hs-name canvas.flag.sm { display: inline-block; vertical-align: -2px; }
 
     <div class="sheet" id="over" hidden>
       <div class="card">
-        <div class="big" id="overTitle">Satz</div>
+        <div class="big" id="overTitle"></div>
         <p class="small" id="overText" style="text-align:center"></p>
         <ol class="hs" id="overList" hidden></ol>
         <button id="againBtn" data-t="again">Revanche</button>
