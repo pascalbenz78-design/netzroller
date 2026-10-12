@@ -189,7 +189,8 @@ export const T = {
   duoChampion: who => `Sieger: ${who}`,
 
   // Weltrangliste (Phase 6)
-  rankLocal: "Auf diesem Gerät", rankWorld: "Weltrangliste", worldCareer: "Karriere", worldMachine: "Ballmaschine",
+  rankLocal: "Auf diesem Gerät", rankWorld: "Weltrangliste", worldCareer: "Karriere", worldMachine: "Ballmaschine", worldRally: "Ballwechsel",
+  worldRallyPts: n => `${n} Schläge`, worldRallyOpp: opp => (opp ? `gegen ${opp}` : ""),
   worldLoading: "Lade Weltrangliste …",
   worldOff: "Die Weltrangliste ist noch nicht eingerichtet. Die Anleitung steht in der README unter «Weltrangliste einrichten».",
   worldError: "Die Weltrangliste ist gerade nicht erreichbar. Deine Ergebnisse werden später nachgeschickt.",

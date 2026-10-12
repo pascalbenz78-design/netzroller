@@ -138,7 +138,7 @@ Zwei Handys spielen gemeinsam ein Turnier mit 16 Spielern (Belag zufällig). Die
 
 ## Weltrangliste
 
-Unter **Rangliste → Weltrangliste** siehst du alle Netzroller-Spieler, die mitmachen, zum Beispiel Familie und Freunde: sortiert nach **Karriere** (zuerst die Stufe, dann die Ranglistenpunkte darin) oder nach **Ballmaschine** (bester Durchgang, Höchsttempo).
+Unter **Rangliste → Weltrangliste** siehst du alle Netzroller-Spieler, die mitmachen, zum Beispiel Familie und Freunde: sortiert nach **Karriere** (zuerst die Stufe, dann die Ranglistenpunkte darin) , nach **Ballmaschine** (bester Durchgang, Höchsttempo) oder nach **Ballwechsel** (dein längster Ballwechsel, mit Gegner).
 
 - Gezeigt werden nur dein selbst gewählter **Name** und dein **Land**. Es gibt kein Konto, keine E-Mail-Adresse und kein Tracking.
 - In den Einstellungen kannst du die Teilnahme abschalten.

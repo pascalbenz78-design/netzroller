@@ -37,6 +37,7 @@ export function initUI({ profile, onChange, onIntro }) {
   $("rankTabWorld").onclick = () => showRanking(profile, "world");
   $("worldByCareer").onclick = () => showRanking(profile, "world", "career");
   $("worldByMachine").onclick = () => showRanking(profile, "world", "machine");
+  $("worldByRally").onclick = () => showRanking(profile, "world", "rally");
   rankingSave = save;
   $("rankBack").onclick = () => showScreen("menu");
   $("settingsBack").onclick = () => showScreen("menu");
@@ -109,6 +110,7 @@ export function showRanking(profile, tab, by) {
   }
   $("worldByCareer").setAttribute("aria-pressed", String(worldBy === "career"));
   $("worldByMachine").setAttribute("aria-pressed", String(worldBy === "machine"));
+  $("worldByRally").setAttribute("aria-pressed", String(worldBy === "rally"));
   const list = $("worldList"), note = $("worldNote");
   list.textContent = "";
   if (!ON.onlineConfigured()) { note.textContent = T.worldOff; return; }
@@ -128,7 +130,7 @@ function renderWorld(profile, rows) {
   if (!rows.length) hints.push(T.worldEmpty);
   if (profile.online && profile.online.join === false) hints.push(T.worldOptOut);
   else if (!profile.name) hints.push(T.worldNoName);
-  const waiting = (profile.online?.pendingScores?.length || 0) + (profile.online?.pendingCareer ? 1 : 0);
+  const waiting = (profile.online?.pendingScores?.length || 0) + (profile.online?.pendingCareer ? 1 : 0) + (profile.online?.pendingRally ? 1 : 0);
   if (waiting) hints.push(T.worldPending(waiting));
   note.textContent = hints.join(" ");
   rows.forEach((r, i) => {
@@ -141,7 +143,10 @@ function renderWorld(profile, rows) {
     requestAnimationFrame(() => paintFlag(fl, r.land));
     const pts = document.createElement("span"); pts.className = "hs-pts";
     const meta = document.createElement("span"); meta.className = "hs-meta";
-    if (worldBy === "machine") {
+    if (worldBy === "rally") {
+      pts.textContent = T.worldRallyPts(r.rally_best ?? 0);
+      meta.textContent = [T.worldRallyOpp(r.rally_opp), countryName(r.land)].filter(Boolean).join(" · ");
+    } else if (worldBy === "machine") {
       pts.textContent = T.rankPoints(r.machine_best ?? 0);
       meta.textContent = T.rankKmh(r.machine_speed ?? 0) + " · " + countryName(r.land);
     } else {

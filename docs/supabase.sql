@@ -118,6 +118,39 @@ grant execute on function public.nr_register(uuid, text, text, text) to anon;
 grant execute on function public.nr_submit_score(uuid, text, integer, integer) to anon;
 grant execute on function public.nr_submit_career(uuid, text, text, integer, integer, integer) to anon;
 
+-- ---------- Längster Ballwechsel (nur der beste Wert pro Spieler) ----------
+create table if not exists public.rallies (
+  player_id   uuid primary key references public.players (id) on delete cascade,
+  strokes     integer not null check (strokes between 1 and 10000),
+  opp         text not null default '' check (char_length(opp) <= 20),
+  updated_at  timestamptz not null default now()
+);
+alter table public.rallies enable row level security;
+drop policy if exists "alle lesen" on public.rallies;
+create policy "alle lesen" on public.rallies for select using (true);
+revoke insert, update, delete on public.rallies from anon, authenticated;
+grant select on public.rallies to anon, authenticated;
+
+/** Längsten Ballwechsel eintragen: Ein kürzerer überschreibt einen längeren nie. */
+create or replace function public.nr_submit_rally(p_id uuid, p_key text, p_strokes integer, p_opp text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from players where id = p_id and key_hash = nr_hash(p_key)) then
+    raise exception 'Schlüssel passt nicht';
+  end if;
+  if p_strokes < 1 or p_strokes > 10000 or char_length(coalesce(p_opp, '')) > 20 then raise exception 'unplausibel'; end if;
+  if exists (select 1 from rallies where player_id = p_id and updated_at > now() - interval '1 minute') then
+    raise exception 'höchstens ein Eintrag pro Minute';
+  end if;
+  insert into rallies (player_id, strokes, opp) values (p_id, p_strokes, coalesce(p_opp, ''))
+  on conflict (player_id) do update
+    set strokes = greatest(rallies.strokes, excluded.strokes),
+        opp = case when excluded.strokes > rallies.strokes then excluded.opp else rallies.opp end,
+        updated_at = now();
+end $$;
+revoke all on function public.nr_submit_rally(uuid, text, integer, text) from public, authenticated;
+grant execute on function public.nr_submit_rally(uuid, text, integer, text) to anon;
+
 -- ---------- Ansicht für die Weltrangliste ----------
 drop view if exists public.world_ranking;
 create view public.world_ranking with (security_invoker = on) as
@@ -130,8 +163,11 @@ select
   c.tier_rank,
   (select max(s.points) from scores s where s.player_id = p.id) as machine_best,
   (select max(s.speed)  from scores s where s.player_id = p.id) as machine_speed,
-  greatest(p.updated_at, c.updated_at) as updated_at
+  r.strokes as rally_best,
+  r.opp     as rally_opp,
+  greatest(p.updated_at, c.updated_at, r.updated_at) as updated_at
 from players p
-left join career c on c.player_id = p.id;
+left join career c on c.player_id = p.id
+left join rallies r on r.player_id = p.id;
 
 grant select on public.world_ranking to anon, authenticated;

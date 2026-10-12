@@ -37,6 +37,7 @@ function cleanOnline(o) {
   r.pendingScores = Array.isArray(o.pendingScores) ? o.pendingScores.filter(x => x && Number.isInteger(x.points) && Number.isInteger(x.kmh)).slice(0, 3) : [];
   if (o.pendingCareer && typeof o.pendingCareer === "object") r.pendingCareer = o.pendingCareer;
   if (typeof o.registered === "string") r.registered = o.registered;
+  if (o.pendingRally && Number.isInteger(o.pendingRally.n) && o.pendingRally.n > 0) r.pendingRally = { n: o.pendingRally.n, opp: String(o.pendingRally.opp || "").slice(0, 20) };
   return r;
 }
 

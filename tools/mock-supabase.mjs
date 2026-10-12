@@ -9,7 +9,7 @@ import { createHash } from "node:crypto";
 const port = +process.argv[2] || 8766;
 const windowMs = (+process.argv[3] || 60) * 1000;
 const ANON = "test-anon-key";
-const players = new Map(), scores = [], career = new Map();
+const players = new Map(), scores = [], career = new Map(), rallies = new Map();
 const hash = k => createHash("sha256").update(k).digest("hex");
 
 function fail(res, code, msg) { res.writeHead(code, cors({ "Content-Type": "application/json" })); res.end(JSON.stringify({ message: msg })); }
@@ -40,6 +40,14 @@ const rpc = {
   },
 };
 
+rpc.nr_submit_rally = ({ p_id, p_key, p_strokes, p_opp }) => {
+  if (!keyOk(p_id, p_key)) throw "Schlüssel passt nicht";
+  if (!(p_strokes >= 1 && p_strokes <= 10000) || String(p_opp || "").length > 20) throw "unplausibel";
+  const r = rallies.get(p_id);
+  if (r && Date.now() - r.at < windowMs) throw "höchstens ein Eintrag pro Minute";
+  rallies.set(p_id, { strokes: Math.max(r ? r.strokes : 0, p_strokes), opp: !r || p_strokes > r.strokes ? p_opp || "" : r.opp, at: Date.now() });
+};
+
 function worldRanking(q) {
   let rows = [...players.values()].map(p => {
     const c = career.get(p.id), mine = scores.filter(s => s.player_id === p.id);
@@ -49,9 +57,11 @@ function worldRanking(q) {
       ranking_points: c ? c.ranking_points : 0, titles: c ? c.titles : 0, tier_rank: c ? c.tier_rank : null,
       machine_best: mine.length ? Math.max(...mine.map(s => s.points)) : null,
       machine_speed: mine.length ? Math.max(...mine.map(s => s.speed)) : null,
+      rally_best: rallies.has(p.id) ? rallies.get(p.id).strokes : null, rally_opp: rallies.has(p.id) ? rallies.get(p.id).opp : null,
     };
   });
   if (q.get("machine_best") === "not.is.null") rows = rows.filter(r => r.machine_best !== null);
+  if (q.get("rally_best") === "not.is.null") rows = rows.filter(r => r.rally_best !== null);
   const order = (q.get("order") || "").split(",").map(o => o.split("."));
   rows.sort((a, b) => { for (const [k] of order) { const d = (b[k] ?? -1) - (a[k] ?? -1); if (d) return d; } return 0; });
   return rows.slice(0, +q.get("limit") || 100);

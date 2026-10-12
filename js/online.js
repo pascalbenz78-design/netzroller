@@ -75,6 +75,13 @@ export function queueScore(profile, points, kmh) {
   list.length = Math.min(list.length, 3);                 // höchstens die drei besten warten lassen
 }
 
+/** Längster Ballwechsel: nur der beste Wert wartet aufs Hochladen. */
+export function queueRally(profile, strokes, opp) {
+  ensureIdentity(profile);
+  const cur = profile.online.pendingRally;
+  if (!cur || strokes > cur.n) profile.online.pendingRally = { n: strokes, opp: String(opp || "").slice(0, 20) };
+}
+
 /** Karriere: aktuellen Stand zum Hochladen vormerken. */
 export function queueCareer(profile, points, titles, rank, tier) {
   ensureIdentity(profile);
@@ -102,12 +109,18 @@ export async function sync(profile, save) {
     try { await rpc("nr_submit_career", { p_id: o.id, p_key: o.key, p_tier: c.tier || "WORLD", p_points: c.points, p_titles: c.titles, p_rank: c.rank ?? c.bestRank ?? 64 }); delete o.pendingCareer; res.sent++; save(); }
     catch (e) { res.failed++; }
   }
+  if (o.pendingRally) {
+    const r = o.pendingRally;
+    try { await rpc("nr_submit_rally", { p_id: o.id, p_key: o.key, p_strokes: r.n, p_opp: r.opp }); delete o.pendingRally; res.sent++; save(); }
+    catch (e) { res.failed++; }
+  }
   return res;
 }
 
-/** Weltrangliste laden: by = "career" (Ranglistenpunkte) oder "machine" (Ballmaschine). */
+/** Weltrangliste laden: by = "career" (Ranglistenpunkte), "machine" (Ballmaschine) oder "rally" (längster Ballwechsel). */
 export async function loadWorld(by = "career", limit = 100) {
-  const order = by === "machine" ? "machine_best.desc.nullslast,ranking_points.desc" : "tier_order.desc,ranking_points.desc,titles.desc";
-  const filter = by === "machine" ? "&machine_best=not.is.null" : "";
-  return call(`/rest/v1/world_ranking?select=id,name,land,tier,tier_order,ranking_points,titles,tier_rank,machine_best,machine_speed&order=${order}&limit=${limit}${filter}`);
+  const order = by === "machine" ? "machine_best.desc.nullslast,ranking_points.desc"
+    : by === "rally" ? "rally_best.desc.nullslast,ranking_points.desc" : "tier_order.desc,ranking_points.desc,titles.desc";
+  const filter = by === "machine" ? "&machine_best=not.is.null" : by === "rally" ? "&rally_best=not.is.null" : "";
+  return call(`/rest/v1/world_ranking?select=id,name,land,tier,tier_order,ranking_points,titles,tier_rank,machine_best,machine_speed,rally_best,rally_opp&order=${order}&limit=${limit}${filter}`);
 }

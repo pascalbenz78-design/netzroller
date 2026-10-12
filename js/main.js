@@ -387,6 +387,7 @@ function rallyDone(counted) {
   if (record) matchRecord = n;
   if (n >= RB.keepFrom) {
     profile.rallies = [...(profile.rallies || []), { n, opp: oppName, date: today() }].sort((a, b) => b.n - a.n).slice(0, RB.keep);
+    if (n >= profile.rallies[0].n) { ON.queueRally(profile, n, oppName); syncOnline(4000); }   // bester Wert: in die Weltrangliste
     saveProfile(profile);
   }
   showRallyCount(n, record ? T.rallyRecordLive : T.rallyStrokes, record, true);
